@@ -18,28 +18,150 @@
 // Globals from CDN
 const { useState, useEffect, useRef, useMemo } = React;
 
-// Storage adapter - uses localStorage for standalone web app
-window.storage = {
-  async get(key) {
-    try {
-      const val = localStorage.getItem(key);
-      if (val !== null) return { key, value: val };
-      return null;
-    } catch(e) { return null; }
-  },
-  async set(key, value) {
-    try {
-      localStorage.setItem(key, value);
-      return { key, value };
-    } catch(e) { return null; }
-  },
-  async delete(key) {
-    try {
-      localStorage.removeItem(key);
-      return { key, deleted: true };
-    } catch(e) { return null; }
+// Storage adapter - Google Sheets / localStorage auto-switch
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbyayjs4Wa8FaTjl7kcBwK_IiWLtiil4OTBKJ-55Fx0H3V8Z83Mmh05Mop9UY3NQWvtg/exec';
+
+var GoogleSheetsStorage = (function() {
+  var cache = {};
+
+  function apiGet(action, params) {
+    var url = GAS_URL + '?action=' + action;
+    if (params) {
+      Object.keys(params).forEach(function(k) {
+        url += '&' + k + '=' + encodeURIComponent(params[k]);
+      });
+    }
+    return fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+      if (data.error) throw new Error(data.error);
+      return data;
+    });
   }
-};
+
+  function apiPost(body) {
+    return fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(body)
+    }).then(function(r) { return r.json(); }).then(function(data) {
+      if (data.error) throw new Error(data.error);
+      return data;
+    });
+  }
+
+  async function get(key) {
+    if (cache[key]) return { key: key, value: cache[key] };
+    try {
+      var data = await apiGet('getAllFull');
+      var snaps = data.snapshots || [];
+      var value = JSON.stringify(snaps);
+      cache[key] = value;
+      return { key: key, value: value };
+    } catch(e) {
+      console.error('GoogleSheetsStorage.get error:', e);
+      return null;
+    }
+  }
+
+  async function set(key, value) {
+    try {
+      var newSnaps = JSON.parse(value);
+      var oldSnaps = cache[key] ? JSON.parse(cache[key]) : [];
+      var oldMap = {};
+      oldSnaps.forEach(function(s) { oldMap[String(s.id)] = s; });
+      var newMap = {};
+      newSnaps.forEach(function(s) { newMap[String(s.id)] = s; });
+      var deletedIds = [];
+      Object.keys(oldMap).forEach(function(id) { if (!newMap[id]) deletedIds.push(id); });
+      var upsertSnaps = [];
+      newSnaps.forEach(function(s) {
+        var oldJson = oldMap[String(s.id)] ? JSON.stringify(oldMap[String(s.id)]) : '';
+        if (oldJson !== JSON.stringify(s)) upsertSnaps.push(s);
+      });
+      for (var i = 0; i < deletedIds.length; i++) {
+        await apiPost({ action: 'deleteSnapshot', id: deletedIds[i] });
+      }
+      if (upsertSnaps.length > 0) {
+        if (upsertSnaps.length <= 3) {
+          for (var j = 0; j < upsertSnaps.length; j++) {
+            await apiPost({ action: 'saveSnapshot', snapshot: upsertSnaps[j] });
+          }
+        } else {
+          await apiPost({ action: 'saveBulk', snapshots: upsertSnaps });
+        }
+      }
+      cache[key] = value;
+      return { key: key, value: value };
+    } catch(e) {
+      console.error('GoogleSheetsStorage.set error:', e);
+      try {
+        var allSnaps = JSON.parse(value);
+        await apiPost({ action: 'saveBulk', snapshots: allSnaps });
+        cache[key] = value;
+        return { key: key, value: value };
+      } catch(e2) {
+        console.error('GoogleSheetsStorage.set bulk fallback error:', e2);
+        return null;
+      }
+    }
+  }
+
+  async function del(key) {
+    try {
+      var data = await apiGet('getAll');
+      var snaps = data.snapshots || [];
+      for (var i = 0; i < snaps.length; i++) {
+        await apiPost({ action: 'deleteSnapshot', id: snaps[i].id });
+      }
+      delete cache[key];
+      return { key: key, deleted: true };
+    } catch(e) {
+      console.error('GoogleSheetsStorage.delete error:', e);
+      return null;
+    }
+  }
+
+  async function migrateFromLocalStorage(storageKey) {
+    var localData = localStorage.getItem(storageKey);
+    if (!localData) { console.log('localStorageにデータなし: ' + storageKey); return { migrated: 0 }; }
+    var snaps = JSON.parse(localData);
+    console.log('移行対象: ' + snaps.length + ' スナップショット');
+    var result = await apiPost({ action: 'saveBulk', snapshots: snaps });
+    console.log('移行完了:', result);
+    cache[storageKey] = localData;
+    return { migrated: snaps.length, result: result };
+  }
+
+  async function testConnection() {
+    try {
+      var data = await apiGet('getConfig');
+      console.log('Google Sheets接続OK:', data);
+      return { connected: true, config: data.config };
+    } catch(e) {
+      console.error('Google Sheets接続エラー:', e);
+      return { connected: false, error: e.message };
+    }
+  }
+
+  return { get: get, set: set, delete: del, migrateFromLocalStorage: migrateFromLocalStorage, testConnection: testConnection };
+})();
+
+if (GAS_URL && GAS_URL.indexOf('script.google.com') !== -1) {
+  window.storage = GoogleSheetsStorage;
+  console.log('📊 ストレージ: Google Sheets');
+} else {
+  window.storage = {
+    async get(key) {
+      try { var val = localStorage.getItem(key); if (val !== null) return { key: key, value: val }; return null; } catch(e) { return null; }
+    },
+    async set(key, value) {
+      try { localStorage.setItem(key, value); return { key: key, value: value }; } catch(e) { return null; }
+    },
+    async delete(key) {
+      try { localStorage.removeItem(key); return { key: key, deleted: true }; } catch(e) { return null; }
+    }
+  };
+  console.log('💾 ストレージ: localStorage');
+}
 
 
 
