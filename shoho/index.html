@@ -1088,10 +1088,14 @@ function RateTab(props) {
         <span style={{ fontSize: 10, color: "#6b7280" }}>({cur.importDate} 取込)</span>
       </div>
       {entries.map(function(entry, idx) {
-        var dates = entry.dates;
+        var dates = entry.dates || [];
+        var entryPrices = entry.prices || {};
+        var entryStatus = entry.status || {};
+        var entryRank = entry.rank || {};
+        var entrySold = entry.soldRooms || entry.sold || {};
         var priceRows = [];
-        Object.keys(entry.prices).forEach(function(p) {
-          var pd = entry.prices[p];
+        Object.keys(entryPrices).forEach(function(p) {
+          var pd = entryPrices[p] || {};
           var hasVal = Object.values(pd).some(function(v) { return v > 0; });
           if (!hasVal) return;
           priceRows.push(
@@ -1116,15 +1120,15 @@ function RateTab(props) {
                 <tbody>
                   <tr>
                     <td style={stickyTd({ fontWeight: 600, fontSize: 10 })}>状態</td>
-                    {dates.map(function(d) { return <td key={d} style={cellTd({ color: entry.status[d] === "止" ? "#ef4444" : "#22c55e", fontWeight: 700, fontSize: 10 })}>{entry.status[d] || "-"}</td>; })}
+                    {dates.map(function(d) { return <td key={d} style={cellTd({ color: entryStatus[d] === "止" ? "#ef4444" : "#22c55e", fontWeight: 700, fontSize: 10 })}>{entryStatus[d] || "-"}</td>; })}
                   </tr>
                   <tr>
                     <td style={stickyTd({ fontWeight: 600, fontSize: 10 })}>ランク</td>
-                    {dates.map(function(d) { return <td key={d} style={cellTd({ fontWeight: 700, fontSize: 10, color: rankColor(entry.rank[d]) })}>{entry.rank[d] || "-"}</td>; })}
+                    {dates.map(function(d) { return <td key={d} style={cellTd({ fontWeight: 700, fontSize: 10, color: rankColor(entryRank[d]) })}>{entryRank[d] || "-"}</td>; })}
                   </tr>
                   <tr>
                     <td style={stickyTd({ fontWeight: 600, fontSize: 10 })}>販売室数</td>
-                    {dates.map(function(d) { return <td key={d} style={cellTd({ color: "#60a5fa", fontSize: 10 })}>{entry.soldRooms[d] !== undefined ? entry.soldRooms[d] : "-"}</td>; })}
+                    {dates.map(function(d) { return <td key={d} style={cellTd({ color: "#60a5fa", fontSize: 10 })}>{entrySold[d] !== undefined ? entrySold[d] : "-"}</td>; })}
                   </tr>
                   {priceRows}
                 </tbody>
@@ -1143,17 +1147,18 @@ function RateTab(props) {
     entries.forEach(function(entry) {
       var prevEntry = prevPrice.find(function(e) { return roomMatch(e.roomType, entry.roomType) && planMatch(e.plan, entry.plan); });
       if (!prevEntry) return;
-      var dates = entry.dates;
+      var dates = entry.dates || [];
+      var entryRank = entry.rank || {};
       var hasChange = dates.some(function(d) {
-        var curr = entry.rank[d] || "";
+        var curr = entryRank[d] || "";
         var prev = prevEntry.rank ? (prevEntry.rank[d] || "") : "";
         return curr && prev && curr !== prev;
       });
       rankRows.push(
         <tr key={entry.roomType + "-" + entry.plan}>
-          <td style={stickyTd({ fontSize: 9, fontWeight: 500, color: hasChange ? "#e2e2e8" : "#6b7280" })}>{entry.roomType}<br /><span style={{ fontSize: 8, color: "#6b7280" }}>{entry.plan.substring(0, 20)}</span></td>
+          <td style={stickyTd({ fontSize: 9, fontWeight: 500, color: hasChange ? "#e2e2e8" : "#6b7280" })}>{entry.roomType}<br /><span style={{ fontSize: 8, color: "#6b7280" }}>{(entry.plan || "").substring(0, 20)}</span></td>
           {dates.map(function(d) {
-            var curr = entry.rank[d] || "";
+            var curr = entryRank[d] || "";
             var prev = prevEntry.rank ? (prevEntry.rank[d] || "") : "";
             var changed = curr && prev && curr !== prev;
             if (!changed) return <td key={d} style={cellTd({ fontSize: 9, color: "#3f3f46" })}>·</td>;
@@ -1166,7 +1171,7 @@ function RateTab(props) {
       );
     });
     if (rankRows.length > 0) {
-      var sampleDates = entries[0] ? entries[0].dates : [];
+      var sampleDates = entries[0] ? (entries[0].dates || []) : [];
       block2 = (
         <div style={{ marginTop: 24 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
@@ -1195,16 +1200,18 @@ function RateTab(props) {
     entries.forEach(function(entry) {
       var yoyEntry = yoyPrice.find(function(e) { return roomMatch(e.roomType, entry.roomType) && planMatch(e.plan, entry.plan); });
       if (!yoyEntry) return;
-      var dates = entry.dates;
+      var dates = entry.dates || [];
+      var entryRank = entry.rank || {};
+      var entryPrices = entry.prices || {};
 
       // Rank comparison row
       yoyEntryRows.push(
         <tr key={entry.roomType + "-" + entry.plan + "-hdr"} style={{ background: "rgba(251,191,36,0.06)" }}>
-          <td style={stickyTd({ fontSize: 10, fontWeight: 700, color: "#fbbf24", background: "rgba(251,191,36,0.08)" })}>{entry.roomType}<br /><span style={{ fontSize: 8, color: "#a3842a" }}>{entry.plan.substring(0, 25)}</span></td>
+          <td style={stickyTd({ fontSize: 10, fontWeight: 700, color: "#fbbf24", background: "rgba(251,191,36,0.08)" })}>{entry.roomType}<br /><span style={{ fontSize: 8, color: "#a3842a" }}>{(entry.plan || "").substring(0, 25)}</span></td>
           <td style={cellTd({ fontSize: 9, fontWeight: 600, color: "#fbbf24" })}>ランク</td>
           {dates.map(function(d) {
             var yoyD = getYoyDate(d);
-            var curr = entry.rank[d] || "";
+            var curr = entryRank[d] || "";
             var prev = yoyD && yoyEntry.rank ? (yoyEntry.rank[yoyD] || "") : "";
             var changed = curr && prev && curr !== prev;
             return <td key={d} style={cellTd({ fontSize: 9, color: changed ? "#f59e0b" : "#6b7280" })}>
@@ -1215,8 +1222,8 @@ function RateTab(props) {
       );
 
       // Price comparison rows per person count
-      Object.keys(entry.prices).forEach(function(persons) {
-        var curPrices = entry.prices[persons];
+      Object.keys(entryPrices).forEach(function(persons) {
+        var curPrices = entryPrices[persons] || {};
         var hasVal = Object.values(curPrices).some(function(v) { return v > 0; });
         if (!hasVal) return;
         var yoyPrices = yoyEntry.prices ? (yoyEntry.prices[persons] || {}) : {};
