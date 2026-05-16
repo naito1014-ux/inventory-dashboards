@@ -761,7 +761,7 @@ function InventoryTab(props) {
   var currentYearSnaps = prevSnaps.filter(function(s) { return s.year === cur.year; });
   var lastPrev = currentYearSnaps.length > 0 ? currentYearSnaps[currentYearSnaps.length - 1] : null;
 
-  // Find best YoY snapshot: look for previous year data with import date within ±7 days of 52 weeks ago from current import date
+  // Find best YoY snapshot: look for previous year data with import date within ±10 days of 52 weeks ago from current import date
   var yoySnap = null;
   (function findYoY() {
     var curImport = new Date(cur.importDate);
@@ -772,21 +772,12 @@ function InventoryTab(props) {
     var bestDist = Infinity;
     allPast.forEach(function(s) {
       var sDate = new Date(s.importDate);
-      var dist = Math.abs(sDate.getTime() - target52w.getTime());
-      var daysDist = dist / (24 * 60 * 60 * 1000);
-      if (daysDist <= 14 && daysDist < bestDist) {
+      var daysDist = Math.abs(sDate.getTime() - target52w.getTime()) / (24 * 60 * 60 * 1000);
+      if (daysDist <= 10 && daysDist < bestDist) {
         bestDist = daysDist;
         bestSnap = s;
       }
     });
-    // Fallback: if no ±14 day match, pick the closest previous year snap
-    if (!bestSnap && allPast.length > 0) {
-      allPast.forEach(function(s) {
-        var sDate = new Date(s.importDate);
-        var dist = Math.abs(sDate.getTime() - target52w.getTime());
-        if (dist < bestDist) { bestDist = dist; bestSnap = s; }
-      });
-    }
     yoySnap = bestSnap;
   })();
 
@@ -944,7 +935,17 @@ function InventoryTab(props) {
 
   // === BLOCK 3: YoY (day-of-week matched) ===
   var block3 = null;
-  if (yoySnap) {
+  if (!yoySnap) {
+    block3 = (
+      <div style={{ marginTop: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <div style={{ width: 4, height: 18, borderRadius: 2, background: "#fbbf24" }} />
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: "#fbbf24", margin: 0 }}>前年同日対比</h3>
+        </div>
+        <div style={{ padding: "16px 14px", borderRadius: 8, border: "1px dashed #3f3f46", color: "#6b7280", fontSize: 12 }}>前年対比　データなし（±10日以内の前年スナップショットが見つかりません）</div>
+      </div>
+    );
+  } else {
     var yoyRoomRows = [];
     console.log("YoY snap: " + yoySnap.importDate + " rooms=" + (yoySnap.rooms || []).length + " prices=" + (yoySnap.priceEntries || []).length + " names=" + (yoySnap.rooms || []).map(function(r){return r.name;}).join("|"));
     cur.rooms.forEach(function(room) {
@@ -1034,7 +1035,7 @@ function RateTab(props) {
   var lastPrev = currentYearSnaps.length > 0 ? currentYearSnaps[currentYearSnaps.length - 1] : null;
   var prevPrice = lastPrev ? (lastPrev.priceEntries || []) : [];
 
-  // Find YoY snap (same logic as InventoryTab)
+  // Find YoY snap (same logic as InventoryTab: ±10日以内で最も近いもののみ)
   var yoySnap = null;
   (function() {
     var curImport = new Date(cur.importDate);
@@ -1046,11 +1047,7 @@ function RateTab(props) {
     var bestSnap = null, bestDist = Infinity;
     allPast.forEach(function(s) {
       var dist = Math.abs(new Date(s.importDate).getTime() - target52w.getTime()) / 86400000;
-      if (dist <= 14 && dist < bestDist) { bestDist = dist; bestSnap = s; }
-    });
-    if (!bestSnap) allPast.forEach(function(s) {
-      var dist = Math.abs(new Date(s.importDate).getTime() - target52w.getTime()) / 86400000;
-      if (dist < bestDist) { bestDist = dist; bestSnap = s; }
+      if (dist <= 10 && dist < bestDist) { bestDist = dist; bestSnap = s; }
     });
     yoySnap = bestSnap;
   })();
@@ -1195,7 +1192,17 @@ function RateTab(props) {
 
   // ═══ BLOCK 3: YoY Price Comparison ═══
   var block3 = null;
-  if (yoySnap && yoyPrice.length > 0) {
+  if (!yoySnap) {
+    block3 = (
+      <div style={{ marginTop: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <div style={{ width: 4, height: 18, borderRadius: 2, background: "#fbbf24" }} />
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: "#fbbf24", margin: 0 }}>前年同日 料金対比</h3>
+        </div>
+        <div style={{ padding: "16px 14px", borderRadius: 8, border: "1px dashed #3f3f46", color: "#6b7280", fontSize: 12 }}>前年対比　データなし（±10日以内の前年スナップショットが見つかりません）</div>
+      </div>
+    );
+  } else if (yoySnap && yoyPrice.length > 0) {
     var yoyEntryRows = [];
     entries.forEach(function(entry) {
       var yoyEntry = yoyPrice.find(function(e) { return roomMatch(e.roomType, entry.roomType) && planMatch(e.plan, entry.plan); });
