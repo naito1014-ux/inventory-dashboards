@@ -516,6 +516,9 @@ function App() {
         const r = await window.storage.get("inventory-shoho");
         if (r && r.value) {
           const d = JSON.parse(r.value);
+          // GASはシート行順で返すため、importDate昇順にソートしておく
+          // （週間比較が末尾=直前スナップショット前提のため。未ソートだと行順次第で誤った過去データと比較される）
+          d.sort(function(a, b) { return a.importDate < b.importDate ? -1 : (a.importDate > b.importDate ? 1 : 0); });
           setSnaps(d);
           if (d.length) {
             var bestIdx = d.length - 1;
