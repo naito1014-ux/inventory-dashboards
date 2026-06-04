@@ -762,6 +762,28 @@ function InventoryTab(props) {
   var cur = props.cur, prevSnaps = props.prevSnaps, allSnaps = props.allSnaps || [], expanded = props.expanded, toggle = props.toggle, expandAll = props.expandAll, collapseAll = props.collapseAll;
   var dates = cur.dates;
   var year = cur.year;
+
+  // 3テーブル（最新在庫/週間比較/前年同日）の横スクロール連動
+  var syncRef = useRef(null);
+  useEffect(function syncScroll() {
+    var root = syncRef.current;
+    if (!root) return;
+    var conts = Array.prototype.slice.call(root.querySelectorAll('[data-sync="inv"]'));
+    if (conts.length < 2) return;
+    var lock = false; // 無限ループ防止フラグ
+    function onScroll(e) {
+      if (lock) return;
+      lock = true;
+      var sl = e.target.scrollLeft;
+      conts.forEach(function(c) { if (c !== e.target) c.scrollLeft = sl; });
+      // プログラム的scroll由来のイベントが捌けた次フレームでフラグ解除
+      requestAnimationFrame(function() { lock = false; });
+    }
+    conts.forEach(function(c) { c.addEventListener("scroll", onScroll); });
+    return function cleanup() {
+      conts.forEach(function(c) { c.removeEventListener("scroll", onScroll); });
+    };
+  });
   var currentYearSnaps = prevSnaps.filter(function(s) { return s.year === cur.year; });
   var lastPrev = currentYearSnaps.length > 0 ? currentYearSnaps[currentYearSnaps.length - 1] : null;
 
@@ -859,7 +881,7 @@ function InventoryTab(props) {
           <button className="btn bg2 bs" onClick={collapseAll}>全折畿</button>
         </div>
       </div>
-      <div className="tw">
+      <div className="tw" data-sync="inv">
         <table style={{ minWidth: dates.length * 50 + 200 }}>
           <thead><tr style={{ background: "#14151e" }}>
             <th style={{ position: "sticky", left: 0, zIndex: 10, background: "#14151e", borderRight: "2px solid #232530", minWidth: 180, fontSize: 10, textAlign: "left", padding: "5px 8px", borderBottom: "1px solid #232530" }}>{cur.period ? cur.period.replace("指定期間 ", "") : ""}</th>
@@ -907,7 +929,7 @@ function InventoryTab(props) {
           <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "#c4b5fd" }}>週間比較</h3>
           <span style={{ fontSize: 10, color: "#6b7280" }}>({lastPrev.importDate} → {cur.importDate} 販売増減)</span>
         </div>
-        <div className="tw">
+        <div className="tw" data-sync="inv">
           <table style={{ minWidth: dates.length * 50 + 200 }}>
             <thead><tr style={{ background: "rgba(139,92,246,0.06)" }}>
               <th style={{ position: "sticky", left: 0, zIndex: 10, background: "rgba(139,92,246,0.06)", borderRight: "2px solid #232530", minWidth: 180, fontSize: 10, textAlign: "left", padding: "5px 8px", borderBottom: "1px solid #232530", color: "#c4b5fd" }}>週間比較（販売増減）</th>
@@ -977,7 +999,7 @@ function InventoryTab(props) {
           <h3 style={{ fontSize: 14, fontWeight: 700, color: "#fbbf24", margin: 0 }}>前年同日対比</h3>
           <span style={{ fontSize: 10, color: "#6b7280" }}>({yoySnap.importDate} 取込 / 曜日合わせ: 52週前)</span>
         </div>
-        <div className="tw">
+        <div className="tw" data-sync="inv">
           <table style={{ minWidth: dates.length * 50 + 200 }}>
             <thead><tr style={{ background: "rgba(251,191,36,0.06)" }}>
               <th style={{ position: "sticky", left: 0, zIndex: 10, background: "rgba(251,191,36,0.06)", borderRight: "2px solid #232530", minWidth: 180, fontSize: 10, textAlign: "left", padding: "5px 8px", borderBottom: "1px solid #232530", color: "#fbbf24" }}>前年対比（曜日合わせ）</th>
@@ -1020,7 +1042,7 @@ function InventoryTab(props) {
     );
   }
 
-  return (<div>{block1}{block2}{block3}</div>);
+  return (<div ref={syncRef}>{block1}{block2}{block3}</div>);
 }
 
 function RateTab(props) {
