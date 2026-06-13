@@ -210,9 +210,9 @@ const occRate = (sold, rem) => {
   return (s + r === 0) ? null : Math.round((s / (s + r)) * 100);
 };
 
-const occColor = r => r === null ? "#555" : r >= 90 ? "#ef4444" : r >= 70 ? "#f59e0b" : r >= 50 ? "#22c55e" : "#6b7280";
-const occBg = r => r === null ? "transparent" : r >= 90 ? "rgba(239,68,68,0.12)" : r >= 70 ? "rgba(245,158,11,0.10)" : r >= 50 ? "rgba(34,197,94,0.08)" : "transparent";
-const rankColor = rank => { if (!rank) return "#888"; const c = rank.charAt(0); return "STUVW".includes(c) ? "#ef4444" : "OPQ".includes(c) ? "#ea580c" : "KLMN".includes(c) ? "#d97706" : "GHI".includes(c) ? "#059669" : "#6b7280"; };
+const occColor = r => r === null ? "#9a8e7e" : r >= 90 ? "#c03030" : r >= 70 ? "#b07828" : r >= 50 ? "#2d7a2d" : "#9a8e7e";
+const occBg = r => r === null ? "transparent" : r >= 90 ? "rgba(192,48,48,0.12)" : r >= 70 ? "rgba(176,120,40,0.10)" : r >= 50 ? "rgba(45,122,45,0.08)" : "transparent";
+const rankColor = rank => { if (!rank) return "#9a8e7e"; const c = rank.charAt(0); return "STUVW".includes(c) ? "#c03030" : "OPQ".includes(c) ? "#b07828" : "KLMN".includes(c) ? "#b07828" : "GHI".includes(c) ? "#2d7a2d" : "#9a8e7e"; };
 
 function parseInventory(wb) {
   const sh = wb.Sheets[wb.SheetNames[0]];
@@ -405,37 +405,37 @@ function parseLegacyExcel(wb) {
 }
 
 function stickyTd(extra) {
-  return { position: "sticky", left: 0, zIndex: 5, background: "#14151e", borderRight: "2px solid #232530", padding: "5px 8px", borderBottom: "1px solid #232530", whiteSpace: "nowrap", ...extra };
+  return { position: "sticky", left: 0, zIndex: 5, background: "#f5f1ea", borderRight: "2px solid rgba(44,36,24,0.12)", padding: "5px 8px", borderBottom: "1px solid rgba(44,36,24,0.12)", whiteSpace: "nowrap", ...extra };
 }
 
 function cellTd(extra) {
-  return { textAlign: "center", padding: "5px 6px", borderBottom: "1px solid #232530", whiteSpace: "nowrap", ...extra };
+  return { textAlign: "center", padding: "5px 6px", borderBottom: "1px solid rgba(44,36,24,0.12)", whiteSpace: "nowrap", ...extra };
 }
 
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Noto Sans JP',sans-serif;background:#0c0d12;color:#e2e2e8}
-.hdr{background:linear-gradient(135deg,#14151e,#1a1b28);border-bottom:1px solid #232530;padding:14px 20px;position:sticky;top:0;z-index:100}
-.ttl{font-size:18px;font-weight:700;background:linear-gradient(135deg,#60a5fa,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.sub{font-size:10px;color:#6b7280;margin-top:2px}
+body{font-family:'Noto Sans JP',sans-serif;background:#faf8f4;color:#2c2418}
+.hdr{background:linear-gradient(135deg,#f5f1ea,#ede8df);border-bottom:1px solid rgba(44,36,24,0.12);padding:14px 20px;position:sticky;top:0;z-index:100}
+.ttl{font-size:18px;font-weight:700;background:linear-gradient(135deg,#8b6914,#b07828);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sub{font-size:10px;color:#9a8e7e;margin-top:2px}
 .btn{padding:7px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:none}
-.bp{background:#3b82f6;color:#fff}.bg2{background:transparent;border:1px solid #232530;color:#6b7280}
+.bp{background:#8b6914;color:#fff}.bg2{background:transparent;border:1px solid rgba(44,36,24,0.12);color:#9a8e7e}
 .bs{padding:3px 9px;font-size:10px;border-radius:5px}
 .tabs{display:flex;gap:3px;margin-top:10px}
 .tab{padding:5px 14px;border-radius:6px;font-size:12px;font-weight:600;border:none;cursor:pointer}
-.ton{background:#3b82f6;color:#fff}.tof{background:transparent;color:#6b7280}
+.ton{background:#8b6914;color:#fff}.tof{background:transparent;color:#9a8e7e}
 .sbar{margin-top:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .sb{padding:3px 9px;border-radius:5px;font-size:10px;font-weight:500;cursor:pointer}
-.son{border:1px solid #3b82f6;background:rgba(59,130,246,0.12);color:#3b82f6}
-.sof{border:1px solid #232530;background:transparent;color:#6b7280}
-.tw{overflow-x:auto;border-radius:10px;border:1px solid #232530}
+.son{border:1px solid #8b6914;background:rgba(139,105,20,0.12);color:#8b6914}
+.sof{border:1px solid rgba(44,36,24,0.12);background:transparent;color:#9a8e7e}
+.tw{overflow-x:auto;border-radius:10px;border:1px solid rgba(44,36,24,0.12)}
 table{border-collapse:collapse;font-size:11px;width:100%}
-th,td{padding:5px 6px;white-space:nowrap;border-bottom:1px solid #232530}
+th,td{padding:5px 6px;white-space:nowrap;border-bottom:1px solid rgba(44,36,24,0.12)}
 th{font-weight:600}
-.card{background:#14151e;border-radius:10px;border:1px solid #232530;padding:18px}
+.card{background:#f5f1ea;border-radius:10px;border:1px solid rgba(44,36,24,0.12);padding:18px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
-.bt{background:#232530;border-radius:3px;height:7px;overflow:hidden}
+.bt{background:#ede8df;border-radius:3px;height:7px;overflow:hidden}
 .bf{height:100%;border-radius:3px}
 `;
 
@@ -660,7 +660,7 @@ function App() {
     setSnaps([]); setSelIdx(null); setDemoMode(false);
   };
 
-  if (loading) return React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", color: "#888" } }, "読み込み中...");
+  if (loading) return React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", color: "#9a8e7e" } }, "読み込み中...");
 
   var content = null;
   if (!cur) {
@@ -687,28 +687,28 @@ function App() {
               {importing ? "取込中..." : "📁 データ取込"}
               <input type="file" accept=".xlsx,.xls" multiple onChange={handleImport} style={{ display: "none" }} disabled={importing} />
             </label>
-            <label className="btn" style={{ background: "#fbbf24", color: "#1a1b28", opacity: importing ? 0.6 : 1 }}>
+            <label className="btn" style={{ background: "#8b6914", color: "#ede8df", opacity: importing ? 0.6 : 1 }}>
               {importing ? "取込中..." : "📂 過去データ取込"}
               <input type="file" accept=".xlsx,.xls" multiple onChange={handleLegacyImport} style={{ display: "none" }} disabled={importing} />
             </label>
-            {snaps.length > 0 && <button className="btn bg2" onClick={function() { window.location.reload(); }} style={{ color: "#22c55e", borderColor: "#22c55e" }}>🔄 更新</button>}
+            {snaps.length > 0 && <button className="btn bg2" onClick={function() { window.location.reload(); }} style={{ color: "#2d7a2d", borderColor: "#2d7a2d" }}>🔄 更新</button>}
             {snaps.length > 0 && <button className="btn bg2" onClick={resetAll}>リセット</button>}
           </div>
         </div>
         {snaps.length > 0 && (
           <div className="sbar">
-            <span style={{ fontSize: 11, color: "#6b7280" }}>取込:</span>
+            <span style={{ fontSize: 11, color: "#9a8e7e" }}>取込:</span>
             {snaps.filter(function(s) { return !s.isLegacy; }).map(function(s, i) {
               var realIdx = snaps.indexOf(s);
               return (
                 <span key={s.id} style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
                   <button className={"sb " + (selIdx === realIdx ? "son" : "sof")} onClick={function() { setSelIdx(realIdx); }}>{s.importDate}</button>
-                  <button onClick={function() { delSnap(realIdx); }} style={{ background: "none", border: "none", color: "#6b7280", cursor: "pointer", fontSize: 9, padding: 2, opacity: 0.4 }}>✕</button>
+                  <button onClick={function() { delSnap(realIdx); }} style={{ background: "none", border: "none", color: "#9a8e7e", cursor: "pointer", fontSize: 9, padding: 2, opacity: 0.4 }}>✕</button>
                 </span>
               );
             })}
             {snaps.some(function(s) { return s.isLegacy; }) && (
-              <span style={{ fontSize: 10, color: "#fbbf24", marginLeft: 6 }}>📂 過去{snaps.filter(function(s) { return s.isLegacy; }).length}件</span>
+              <span style={{ fontSize: 10, color: "#8b6914", marginLeft: 6 }}>📂 過去{snaps.filter(function(s) { return s.isLegacy; }).length}件</span>
             )}
           </div>
         )}
@@ -721,15 +721,15 @@ function App() {
         )}
       </div>
       {demoMode && (
-        <div style={{ background: "rgba(251,191,36,0.1)", borderBottom: "1px solid rgba(251,191,36,0.3)", padding: "8px 20px", fontSize: 11, color: "#fbbf24", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ background: "rgba(139,105,20,0.1)", borderBottom: "1px solid rgba(139,105,20,0.3)", padding: "8px 20px", fontSize: 11, color: "#8b6914", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span>📋 デモデータ表示中 — 表示位置の確認用です。実データを取り込むとデモは消えます。</span>
-          <button onClick={function() { setDemoMode(false); setSnaps([]); setSelIdx(null); }} style={{ background: "rgba(251,191,36,0.2)", border: "1px solid rgba(251,191,36,0.4)", color: "#fbbf24", borderRadius: 5, padding: "3px 10px", fontSize: 10, cursor: "pointer" }}>デモ終了</button>
+          <button onClick={function() { setDemoMode(false); setSnaps([]); setSelIdx(null); }} style={{ background: "rgba(139,105,20,0.2)", border: "1px solid rgba(139,105,20,0.4)", color: "#8b6914", borderRadius: 5, padding: "3px 10px", fontSize: 10, cursor: "pointer" }}>デモ終了</button>
         </div>
       )}
       {toast && (
-        <div style={{ background: "rgba(59,130,246,0.15)", borderBottom: "1px solid rgba(59,130,246,0.3)", padding: "10px 20px", fontSize: 12, color: "#93c5fd", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ background: "rgba(139,105,20,0.15)", borderBottom: "1px solid rgba(139,105,20,0.3)", padding: "10px 20px", fontSize: 12, color: "#8b6914", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span>{toast}</span>
-          <button onClick={function() { setToast(""); }} style={{ background: "none", border: "1px solid rgba(59,130,246,0.3)", color: "#93c5fd", borderRadius: 5, padding: "3px 10px", fontSize: 10, cursor: "pointer" }}>✕</button>
+          <button onClick={function() { setToast(""); }} style={{ background: "none", border: "1px solid rgba(139,105,20,0.3)", color: "#8b6914", borderRadius: 5, padding: "3px 10px", fontSize: 10, cursor: "pointer" }}>✕</button>
         </div>
       )}
       <div style={{ padding: "14px 20px" }}>
@@ -744,13 +744,13 @@ function EmptyState() {
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "55vh", textAlign: "center", padding: 40 }}>
       <div style={{ fontSize: 44, marginBottom: 14 }}>📊</div>
       <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>データを取り込みましょう</h2>
-      <p style={{ fontSize: 13, color: "#6b7280", maxWidth: 380, lineHeight: 1.7 }}>TLリンカーンから出力した InventoryData と PriceData を「データ取込」からアップロードしてください。</p>
-      <div className="card" style={{ marginTop: 20, fontSize: 12, color: "#6b7280", maxWidth: 340, textAlign: "left" }}>
-        <div style={{ fontWeight: 600, color: "#e2e2e8", marginBottom: 6 }}>取込手順</div>
+      <p style={{ fontSize: 13, color: "#9a8e7e", maxWidth: 380, lineHeight: 1.7 }}>TLリンカーンから出力した InventoryData と PriceData を「データ取込」からアップロードしてください。</p>
+      <div className="card" style={{ marginTop: 20, fontSize: 12, color: "#9a8e7e", maxWidth: 340, textAlign: "left" }}>
+        <div style={{ fontWeight: 600, color: "#2c2418", marginBottom: 6 }}>取込手順</div>
         <div>① InventoryData を出力</div>
         <div>② PriceData を出力</div>
         <div>③ 「データ取込」から2ファイルを同時選択</div>
-        <div style={{ marginTop: 8, fontSize: 11, color: "#3b82f6" }}>💡 毎週取り込むことで売れ行き変動が把握できます</div>
+        <div style={{ marginTop: 8, fontSize: 11, color: "#8b6914" }}>💡 毎週取り込むことで売れ行き変動が把握できます</div>
       </div>
     </div>
   );
@@ -821,7 +821,7 @@ function InventoryTab(props) {
       var dow = pd ? getDow(pd.year, pd.month, pd.day) : "";
       var we = pd ? isWe(pd.year, pd.month, pd.day) : false;
       return (
-        <th key={d} style={{ textAlign: "center", minWidth: 46, padding: "5px 6px", borderBottom: "1px solid #232530", background: we ? "rgba(239,68,68,0.04)" : (bgColor || "#14151e"), color: dow === "日" ? "#ef4444" : dow === "土" ? "#3b82f6" : "#e2e2e8" }}>
+        <th key={d} style={{ textAlign: "center", minWidth: 46, padding: "5px 6px", borderBottom: "1px solid rgba(44,36,24,0.12)", background: we ? "rgba(192,48,48,0.04)" : (bgColor || "#f5f1ea"), color: dow === "日" ? "#c03030" : dow === "土" ? "#8b6914" : "#2c2418" }}>
           <div>{d}</div>
           <div style={{ fontSize: 9, opacity: 0.5 }}>{dow}</div>
         </th>
@@ -838,14 +838,14 @@ function InventoryTab(props) {
     latestRoomRows.push(
       <tr key={room.name} onClick={function() { toggle(room.name); }} style={{ cursor: "pointer" }}>
         <td style={stickyTd({ fontSize: 10, fontWeight: 600 })}>
-          <span style={{ fontSize: 8, marginRight: 4, color: "#6b7280" }}>{isExp ? "▼" : "▶"}</span>
+          <span style={{ fontSize: 8, marginRight: 4, color: "#9a8e7e" }}>{isExp ? "▼" : "▶"}</span>
           {room.name}
         </td>
         {dates.map(function(d) {
           var rem = room.rem[d];
           var sold = room.sold[d];
           var rate = occRate(sold, typeof rem === "number" ? rem : 0);
-          if (rem === "止") return <td key={d} style={cellTd({ background: occBg(rate) })}><span style={{ color: "#ef4444", fontWeight: 700, fontSize: 9 }}>止</span></td>;
+          if (rem === "止") return <td key={d} style={cellTd({ background: occBg(rate) })}><span style={{ color: "#c03030", fontWeight: 700, fontSize: 9 }}>止</span></td>;
           return <td key={d} style={cellTd({ background: occBg(rate) })}><span style={{ color: occColor(rate), fontWeight: 600 }}>{rem}</span></td>;
         })}
       </tr>
@@ -853,8 +853,8 @@ function InventoryTab(props) {
     if (isExp) {
       latestRoomRows.push(
         <tr key={room.name + "-sold"}>
-          <td style={stickyTd({ paddingLeft: 18, fontSize: 10, color: "#60a5fa", background: "#12131b" })}>└ 販売</td>
-          {dates.map(function(d) { return <td key={d} style={cellTd({ fontSize: 10, color: "#60a5fa" })}>{room.sold[d] || 0}</td>; })}
+          <td style={stickyTd({ paddingLeft: 18, fontSize: 10, color: "#8b6914", background: "#f0ebe2" })}>└ 販売</td>
+          {dates.map(function(d) { return <td key={d} style={cellTd({ fontSize: 10, color: "#8b6914" })}>{room.sold[d] || 0}</td>; })}
         </tr>
       );
     }
@@ -863,16 +863,16 @@ function InventoryTab(props) {
   var block1 = (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <div style={{ width: 4, height: 18, borderRadius: 2, background: "#3b82f6" }} />
+        <div style={{ width: 4, height: 18, borderRadius: 2, background: "#8b6914" }} />
         <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0 }}>最新在庫状況</h3>
-        <span style={{ fontSize: 10, color: "#6b7280" }}>({cur.importDate} 取込)</span>
+        <span style={{ fontSize: 10, color: "#9a8e7e" }}>({cur.importDate} 取込)</span>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
         <div style={{ display: "flex", gap: 10, fontSize: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <span><span style={{ width: 7, height: 7, borderRadius: "50%", background: "#ef4444", display: "inline-block", marginRight: 3 }} />90%↑</span>
-          <span><span style={{ width: 7, height: 7, borderRadius: "50%", background: "#f59e0b", display: "inline-block", marginRight: 3 }} />70-89%</span>
-          <span><span style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e", display: "inline-block", marginRight: 3 }} />50-69%</span>
-          <span><span style={{ width: 7, height: 7, borderRadius: "50%", background: "#6b7280", display: "inline-block", marginRight: 3 }} />50%↓</span>
+          <span><span style={{ width: 7, height: 7, borderRadius: "50%", background: "#c03030", display: "inline-block", marginRight: 3 }} />90%↑</span>
+          <span><span style={{ width: 7, height: 7, borderRadius: "50%", background: "#b07828", display: "inline-block", marginRight: 3 }} />70-89%</span>
+          <span><span style={{ width: 7, height: 7, borderRadius: "50%", background: "#2d7a2d", display: "inline-block", marginRight: 3 }} />50-69%</span>
+          <span><span style={{ width: 7, height: 7, borderRadius: "50%", background: "#9a8e7e", display: "inline-block", marginRight: 3 }} />50%↓</span>
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           <button className="btn bg2 bs" onClick={expandAll}>全展開</button>
@@ -881,16 +881,16 @@ function InventoryTab(props) {
       </div>
       <div className="tw" data-sync="inv">
         <table style={{ minWidth: dates.length * 50 + 200 }}>
-          <thead><tr style={{ background: "#14151e" }}>
-            <th style={{ position: "sticky", left: 0, zIndex: 10, background: "#14151e", borderRight: "2px solid #232530", minWidth: 180, fontSize: 10, textAlign: "left", padding: "5px 8px", borderBottom: "1px solid #232530" }}>{cur.period ? cur.period.replace("指定期間 ", "") : ""}</th>
+          <thead><tr style={{ background: "#f5f1ea" }}>
+            <th style={{ position: "sticky", left: 0, zIndex: 10, background: "#f5f1ea", borderRight: "2px solid rgba(44,36,24,0.12)", minWidth: 180, fontSize: 10, textAlign: "left", padding: "5px 8px", borderBottom: "1px solid rgba(44,36,24,0.12)" }}>{cur.period ? cur.period.replace("指定期間 ", "") : ""}</th>
             {dateHeaderCells()}
           </tr></thead>
           <tbody>
             <tr><td style={stickyTd({ fontSize: 11, fontWeight: 700 })}>総残室数</td>
               {dates.map(function(d) { return <td key={d} style={cellTd({ fontWeight: 600 })}>{cur.totRem[d] !== undefined ? cur.totRem[d] : "-"}</td>; })}</tr>
-            <tr><td style={stickyTd({ fontSize: 11, fontWeight: 700, color: "#60a5fa" })}>総販売数</td>
-              {dates.map(function(d) { return <td key={d} style={cellTd({ fontWeight: 700, color: "#60a5fa" })}>{cur.totSold[d] !== undefined ? cur.totSold[d] : "-"}</td>; })}</tr>
-            <tr style={{ borderBottom: "2px solid #232530", background: "rgba(59,130,246,0.05)" }}>
+            <tr><td style={stickyTd({ fontSize: 11, fontWeight: 700, color: "#8b6914" })}>総販売数</td>
+              {dates.map(function(d) { return <td key={d} style={cellTd({ fontWeight: 700, color: "#8b6914" })}>{cur.totSold[d] !== undefined ? cur.totSold[d] : "-"}</td>; })}</tr>
+            <tr style={{ borderBottom: "2px solid rgba(44,36,24,0.12)", background: "rgba(139,105,20,0.05)" }}>
               <td style={stickyTd({ fontSize: 11, fontWeight: 700 })}>稼働率</td>
               {dates.map(function(d) { var rate = occRate(cur.totSold[d], cur.totRem[d]); return <td key={d} style={cellTd({ fontWeight: 700, color: occColor(rate), background: occBg(rate) })}>{rate !== null ? rate + "%" : "-"}</td>; })}
             </tr>
@@ -912,10 +912,10 @@ function InventoryTab(props) {
       if (!prevRoom) return;
       weeklyRoomRows.push(
         <tr key={room.name + "-wk"}>
-          <td style={stickyTd({ fontSize: 10, fontWeight: 500, color: "#e2e2e8", background: "#14151e" })}>{room.name}</td>
+          <td style={stickyTd({ fontSize: 10, fontWeight: 500, color: "#2c2418", background: "#f5f1ea" })}>{room.name}</td>
           {dates.map(function(d) {
             var diff = (room.sold[d] || 0) - (prevRoom.sold[d] || 0);
-            return <td key={d} style={cellTd({ fontSize: 10, fontWeight: 600, color: diff > 0 ? "#22c55e" : diff < 0 ? "#ef4444" : "#3f3f46" })}>{diff > 0 ? "+" + diff : diff === 0 ? "·" : String(diff)}</td>;
+            return <td key={d} style={cellTd({ fontSize: 10, fontWeight: 600, color: diff > 0 ? "#2d7a2d" : diff < 0 ? "#c03030" : "#c9c0b3" })}>{diff > 0 ? "+" + diff : diff === 0 ? "·" : String(diff)}</td>;
           })}
         </tr>
       );
@@ -923,30 +923,30 @@ function InventoryTab(props) {
     block2 = (
       <div style={{ marginTop: 24 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-          <div style={{ width: 4, height: 18, borderRadius: 2, background: "#8b5cf6" }} />
-          <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "#c4b5fd" }}>週間比較</h3>
-          <span style={{ fontSize: 10, color: "#6b7280" }}>({lastPrev.importDate} → {cur.importDate} 販売増減)</span>
+          <div style={{ width: 4, height: 18, borderRadius: 2, background: "#8b6914" }} />
+          <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "#b07828" }}>週間比較</h3>
+          <span style={{ fontSize: 10, color: "#9a8e7e" }}>({lastPrev.importDate} → {cur.importDate} 販売増減)</span>
         </div>
         <div className="tw" data-sync="inv">
           <table style={{ minWidth: dates.length * 50 + 200 }}>
-            <thead><tr style={{ background: "rgba(139,92,246,0.06)" }}>
-              <th style={{ position: "sticky", left: 0, zIndex: 10, background: "#141220", borderRight: "2px solid #232530", minWidth: 180, fontSize: 10, textAlign: "left", padding: "5px 8px", borderBottom: "1px solid #232530", color: "#c4b5fd" }}>週間比較（販売増減）</th>
-              {dateHeaderCells("rgba(139,92,246,0.04)")}
+            <thead><tr style={{ background: "rgba(139,105,20,0.06)" }}>
+              <th style={{ position: "sticky", left: 0, zIndex: 10, background: "#ede8df", borderRight: "2px solid rgba(44,36,24,0.12)", minWidth: 180, fontSize: 10, textAlign: "left", padding: "5px 8px", borderBottom: "1px solid rgba(44,36,24,0.12)", color: "#b07828" }}>週間比較（販売増減）</th>
+              {dateHeaderCells("rgba(139,105,20,0.04)")}
             </tr></thead>
             <tbody>
-              <tr style={{ background: "rgba(139,92,246,0.03)" }}>
-                <td style={stickyTd({ fontSize: 10, fontWeight: 600, color: "#6b7280", background: "#141220" })}>前回 残室({lastPrev.importDate})</td>
-                {dates.map(function(d) { return <td key={d} style={cellTd({ color: "#6b7280", fontSize: 10 })}>{lastPrev.totRem[d] !== undefined ? lastPrev.totRem[d] : "-"}</td>; })}
+              <tr style={{ background: "rgba(139,105,20,0.03)" }}>
+                <td style={stickyTd({ fontSize: 10, fontWeight: 600, color: "#9a8e7e", background: "#ede8df" })}>前回 残室({lastPrev.importDate})</td>
+                {dates.map(function(d) { return <td key={d} style={cellTd({ color: "#9a8e7e", fontSize: 10 })}>{lastPrev.totRem[d] !== undefined ? lastPrev.totRem[d] : "-"}</td>; })}
               </tr>
-              <tr style={{ background: "rgba(139,92,246,0.03)" }}>
-                <td style={stickyTd({ fontSize: 10, fontWeight: 600, color: "#6b7280", background: "#141220" })}>前回 販売</td>
-                {dates.map(function(d) { return <td key={d} style={cellTd({ color: "#6b7280", fontSize: 10 })}>{lastPrev.totSold[d] !== undefined ? lastPrev.totSold[d] : "-"}</td>; })}
+              <tr style={{ background: "rgba(139,105,20,0.03)" }}>
+                <td style={stickyTd({ fontSize: 10, fontWeight: 600, color: "#9a8e7e", background: "#ede8df" })}>前回 販売</td>
+                {dates.map(function(d) { return <td key={d} style={cellTd({ color: "#9a8e7e", fontSize: 10 })}>{lastPrev.totSold[d] !== undefined ? lastPrev.totSold[d] : "-"}</td>; })}
               </tr>
-              <tr style={{ borderBottom: "2px solid #232530" }}>
-                <td style={stickyTd({ fontSize: 11, fontWeight: 700, color: "#22c55e", background: "#14151e" })}>総販売 週間増減</td>
+              <tr style={{ borderBottom: "2px solid rgba(44,36,24,0.12)" }}>
+                <td style={stickyTd({ fontSize: 11, fontWeight: 700, color: "#2d7a2d", background: "#f5f1ea" })}>総販売 週間増減</td>
                 {dates.map(function(d) {
                   var diff = (cur.totSold[d] || 0) - (lastPrev.totSold[d] || 0);
-                  return <td key={d} style={cellTd({ fontWeight: 700, fontSize: 11, color: diff > 0 ? "#22c55e" : diff < 0 ? "#ef4444" : "#6b7280" })}>{diff > 0 ? "+" + diff : diff === 0 ? "-" : String(diff)}</td>;
+                  return <td key={d} style={cellTd({ fontWeight: 700, fontSize: 11, color: diff > 0 ? "#2d7a2d" : diff < 0 ? "#c03030" : "#9a8e7e" })}>{diff > 0 ? "+" + diff : diff === 0 ? "-" : String(diff)}</td>;
                 })}
               </tr>
               {weeklyRoomRows}
@@ -963,10 +963,10 @@ function InventoryTab(props) {
     block3 = (
       <div style={{ marginTop: 24 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-          <div style={{ width: 4, height: 18, borderRadius: 2, background: "#fbbf24" }} />
-          <h3 style={{ fontSize: 14, fontWeight: 700, color: "#fbbf24", margin: 0 }}>前年同日対比</h3>
+          <div style={{ width: 4, height: 18, borderRadius: 2, background: "#8b6914" }} />
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: "#8b6914", margin: 0 }}>前年同日対比</h3>
         </div>
-        <div style={{ padding: "16px 14px", borderRadius: 8, border: "1px dashed #3f3f46", color: "#6b7280", fontSize: 12 }}>前年対比　データなし（±10日以内の前年スナップショットが見つかりません）</div>
+        <div style={{ padding: "16px 14px", borderRadius: 8, border: "1px dashed #c9c0b3", color: "#9a8e7e", fontSize: 12 }}>前年対比　データなし（±10日以内の前年スナップショットが見つかりません）</div>
       </div>
     );
   } else {
@@ -979,13 +979,13 @@ function InventoryTab(props) {
       if (!yoyRoom) return;
       yoyRoomRows.push(
         <tr key={room.name + "-yoy"}>
-          <td style={stickyTd({ fontSize: 10, fontWeight: 500, color: "#fbbf24", background: "#1a1813" })}>{room.name}</td>
+          <td style={stickyTd({ fontSize: 10, fontWeight: 500, color: "#8b6914", background: "#f0ebe2" })}>{room.name}</td>
           {dates.map(function(d) {
             var yoyD = getYoyDate(d);
             var curSold = room.sold[d] || 0;
             var yoySold = yoyD && yoyRoom.sold[yoyD] ? yoyRoom.sold[yoyD] : 0;
             var diff = curSold - yoySold;
-            return <td key={d} style={cellTd({ fontSize: 10, color: diff > 0 ? "#22c55e" : diff < 0 ? "#ef4444" : "#6b7280" })}>{diff > 0 ? "+" + diff : diff === 0 ? "·" : String(diff)}</td>;
+            return <td key={d} style={cellTd({ fontSize: 10, color: diff > 0 ? "#2d7a2d" : diff < 0 ? "#c03030" : "#9a8e7e" })}>{diff > 0 ? "+" + diff : diff === 0 ? "·" : String(diff)}</td>;
           })}
         </tr>
       );
@@ -993,43 +993,43 @@ function InventoryTab(props) {
     block3 = (
       <div style={{ marginTop: 24 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-          <div style={{ width: 4, height: 18, borderRadius: 2, background: "#fbbf24" }} />
-          <h3 style={{ fontSize: 14, fontWeight: 700, color: "#fbbf24", margin: 0 }}>前年同日対比</h3>
-          <span style={{ fontSize: 10, color: "#6b7280" }}>({yoySnap.importDate} 取込 / 曜日合わせ: 52週前)</span>
+          <div style={{ width: 4, height: 18, borderRadius: 2, background: "#8b6914" }} />
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: "#8b6914", margin: 0 }}>前年同日対比</h3>
+          <span style={{ fontSize: 10, color: "#9a8e7e" }}>({yoySnap.importDate} 取込 / 曜日合わせ: 52週前)</span>
         </div>
         <div className="tw" data-sync="inv">
           <table style={{ minWidth: dates.length * 50 + 200 }}>
-            <thead><tr style={{ background: "rgba(251,191,36,0.06)" }}>
-              <th style={{ position: "sticky", left: 0, zIndex: 10, background: "#1a1813", borderRight: "2px solid #232530", minWidth: 180, fontSize: 10, textAlign: "left", padding: "5px 8px", borderBottom: "1px solid #232530", color: "#fbbf24" }}>前年対比（曜日合わせ）</th>
+            <thead><tr style={{ background: "rgba(139,105,20,0.06)" }}>
+              <th style={{ position: "sticky", left: 0, zIndex: 10, background: "#f0ebe2", borderRight: "2px solid rgba(44,36,24,0.12)", minWidth: 180, fontSize: 10, textAlign: "left", padding: "5px 8px", borderBottom: "1px solid rgba(44,36,24,0.12)", color: "#8b6914" }}>前年対比（曜日合わせ）</th>
               {dates.map(function(d) {
                 var yoyD = getYoyDate(d);
                 var pd = parseMMDD(d, year);
                 var dow = pd ? getDow(pd.year, pd.month, pd.day) : "";
                 var we = pd ? isWe(pd.year, pd.month, pd.day) : false;
-                var dowColor = dow === "日" ? "#ef4444" : dow === "土" ? "#3b82f6" : "#fbbf24";
-                return <th key={d} style={{ textAlign: "center", minWidth: 46, padding: "5px 6px", borderBottom: "1px solid #232530", background: we ? "rgba(239,68,68,0.04)" : "rgba(251,191,36,0.04)" }}>
+                var dowColor = dow === "日" ? "#c03030" : dow === "土" ? "#8b6914" : "#8b6914";
+                return <th key={d} style={{ textAlign: "center", minWidth: 46, padding: "5px 6px", borderBottom: "1px solid rgba(44,36,24,0.12)", background: we ? "rgba(192,48,48,0.04)" : "rgba(139,105,20,0.04)" }}>
                   <div style={{ fontSize: 11, fontWeight: 600, color: dowColor }}>{yoyD || "?"}</div>
                   <div style={{ fontSize: 9, opacity: 0.5, color: dowColor }}>{dow}</div>
                 </th>;
               })}
             </tr></thead>
             <tbody>
-              <tr style={{ background: "rgba(251,191,36,0.04)" }}>
-                <td style={stickyTd({ fontSize: 10, fontWeight: 600, color: "#fbbf24", background: "#1a1813" })}>前年 残室</td>
-                {dates.map(function(d) { var yoyD = getYoyDate(d); return <td key={d} style={cellTd({ color: "#fbbf24", opacity: 0.7, fontSize: 10 })}>{yoyD && yoySnap.totRem[yoyD] !== undefined ? yoySnap.totRem[yoyD] : "-"}</td>; })}
+              <tr style={{ background: "rgba(139,105,20,0.04)" }}>
+                <td style={stickyTd({ fontSize: 10, fontWeight: 600, color: "#8b6914", background: "#f0ebe2" })}>前年 残室</td>
+                {dates.map(function(d) { var yoyD = getYoyDate(d); return <td key={d} style={cellTd({ color: "#8b6914", opacity: 0.7, fontSize: 10 })}>{yoyD && yoySnap.totRem[yoyD] !== undefined ? yoySnap.totRem[yoyD] : "-"}</td>; })}
               </tr>
-              <tr style={{ background: "rgba(251,191,36,0.04)" }}>
-                <td style={stickyTd({ fontSize: 10, fontWeight: 600, color: "#fbbf24", background: "#1a1813" })}>前年 販売</td>
-                {dates.map(function(d) { var yoyD = getYoyDate(d); return <td key={d} style={cellTd({ color: "#fbbf24", opacity: 0.7, fontSize: 10 })}>{yoyD && yoySnap.totSold[yoyD] !== undefined ? yoySnap.totSold[yoyD] : "-"}</td>; })}
+              <tr style={{ background: "rgba(139,105,20,0.04)" }}>
+                <td style={stickyTd({ fontSize: 10, fontWeight: 600, color: "#8b6914", background: "#f0ebe2" })}>前年 販売</td>
+                {dates.map(function(d) { var yoyD = getYoyDate(d); return <td key={d} style={cellTd({ color: "#8b6914", opacity: 0.7, fontSize: 10 })}>{yoyD && yoySnap.totSold[yoyD] !== undefined ? yoySnap.totSold[yoyD] : "-"}</td>; })}
               </tr>
-              <tr style={{ borderBottom: "2px solid #232530", background: "rgba(251,191,36,0.04)" }}>
-                <td style={stickyTd({ fontSize: 10, fontWeight: 700, color: "#fbbf24", background: "#1a1813" })}>総販売 前年差</td>
+              <tr style={{ borderBottom: "2px solid rgba(44,36,24,0.12)", background: "rgba(139,105,20,0.04)" }}>
+                <td style={stickyTd({ fontSize: 10, fontWeight: 700, color: "#8b6914", background: "#f0ebe2" })}>総販売 前年差</td>
                 {dates.map(function(d) {
                   var yoyD = getYoyDate(d);
                   var curV = cur.totSold[d] || 0;
                   var yoyV = yoyD && yoySnap.totSold[yoyD] ? yoySnap.totSold[yoyD] : 0;
                   var diff = curV - yoyV;
-                  return <td key={d} style={cellTd({ fontWeight: 700, fontSize: 10, color: diff > 0 ? "#22c55e" : diff < 0 ? "#ef4444" : "#6b7280" })}>{diff > 0 ? "+" + diff : diff === 0 ? "-" : String(diff)}</td>;
+                  return <td key={d} style={cellTd({ fontWeight: 700, fontSize: 10, color: diff > 0 ? "#2d7a2d" : diff < 0 ? "#c03030" : "#9a8e7e" })}>{diff > 0 ? "+" + diff : diff === 0 ? "-" : String(diff)}</td>;
                 })}
               </tr>
               {yoyRoomRows}
@@ -1050,7 +1050,7 @@ function RateTab(props) {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "40vh" }}>
         <div style={{ fontSize: 36, marginBottom: 10 }}>💰</div>
-        <p style={{ color: "#6b7280" }}>料金データがありません。PriceDataも一緒に取り込んでください。</p>
+        <p style={{ color: "#9a8e7e" }}>料金データがありません。PriceDataも一緒に取り込んでください。</p>
       </div>
     );
   }
@@ -1092,7 +1092,7 @@ function RateTab(props) {
       var dow = pd ? getDow(pd.year, pd.month, pd.day) : "";
       var we = pd ? isWe(pd.year, pd.month, pd.day) : false;
       return (
-        <th key={d} style={{ textAlign: "center", minWidth: 46, padding: "5px 6px", borderBottom: "1px solid #232530", background: we ? "rgba(239,68,68,0.04)" : (bgColor || "#14151e"), color: dow === "日" ? "#ef4444" : dow === "土" ? "#3b82f6" : "#e2e2e8" }}>
+        <th key={d} style={{ textAlign: "center", minWidth: 46, padding: "5px 6px", borderBottom: "1px solid rgba(44,36,24,0.12)", background: we ? "rgba(192,48,48,0.04)" : (bgColor || "#f5f1ea"), color: dow === "日" ? "#c03030" : dow === "土" ? "#8b6914" : "#2c2418" }}>
           <div>{d}</div>
           <div style={{ fontSize: 9, opacity: 0.5 }}>{dow}</div>
         </th>
@@ -1104,9 +1104,9 @@ function RateTab(props) {
   var block1 = (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <div style={{ width: 4, height: 18, borderRadius: 2, background: "#3b82f6" }} />
+        <div style={{ width: 4, height: 18, borderRadius: 2, background: "#8b6914" }} />
         <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0 }}>最新レート・料金</h3>
-        <span style={{ fontSize: 10, color: "#6b7280" }}>({cur.importDate} 取込)</span>
+        <span style={{ fontSize: 10, color: "#9a8e7e" }}>({cur.importDate} 取込)</span>
       </div>
       {entries.map(function(entry, idx) {
         var dates = entry.dates || [];
@@ -1127,21 +1127,21 @@ function RateTab(props) {
           );
         });
         return (
-          <div key={idx} style={{ marginBottom: 16, borderRadius: 10, border: "1px solid #232530", overflow: "hidden" }}>
-            <div style={{ padding: "8px 14px", background: "#14151e", borderBottom: "1px solid #232530" }}>
+          <div key={idx} style={{ marginBottom: 16, borderRadius: 10, border: "1px solid rgba(44,36,24,0.12)", overflow: "hidden" }}>
+            <div style={{ padding: "8px 14px", background: "#f5f1ea", borderBottom: "1px solid rgba(44,36,24,0.12)" }}>
               <span style={{ fontWeight: 700, fontSize: 12 }}>{entry.roomType}</span>
-              <span style={{ color: "#6b7280", fontSize: 10, marginLeft: 8 }}>{entry.plan}</span>
+              <span style={{ color: "#9a8e7e", fontSize: 10, marginLeft: 8 }}>{entry.plan}</span>
             </div>
             <div className="tw" style={{ border: "none", borderRadius: 0 }}>
               <table style={{ minWidth: dates.length * 50 + 140 }}>
-                <thead><tr style={{ background: "#14151e" }}>
-                  <th style={{ position: "sticky", left: 0, zIndex: 10, background: "#14151e", borderRight: "2px solid #232530", minWidth: 120, padding: "5px 8px", borderBottom: "1px solid #232530" }}></th>
+                <thead><tr style={{ background: "#f5f1ea" }}>
+                  <th style={{ position: "sticky", left: 0, zIndex: 10, background: "#f5f1ea", borderRight: "2px solid rgba(44,36,24,0.12)", minWidth: 120, padding: "5px 8px", borderBottom: "1px solid rgba(44,36,24,0.12)" }}></th>
                   {dateHeaderCells(dates)}
                 </tr></thead>
                 <tbody>
                   <tr>
                     <td style={stickyTd({ fontWeight: 600, fontSize: 10 })}>状態</td>
-                    {dates.map(function(d) { return <td key={d} style={cellTd({ color: entryStatus[d] === "止" ? "#ef4444" : "#22c55e", fontWeight: 700, fontSize: 10 })}>{entryStatus[d] || "-"}</td>; })}
+                    {dates.map(function(d) { return <td key={d} style={cellTd({ color: entryStatus[d] === "止" ? "#c03030" : "#2d7a2d", fontWeight: 700, fontSize: 10 })}>{entryStatus[d] || "-"}</td>; })}
                   </tr>
                   <tr>
                     <td style={stickyTd({ fontWeight: 600, fontSize: 10 })}>ランク</td>
@@ -1149,7 +1149,7 @@ function RateTab(props) {
                   </tr>
                   <tr>
                     <td style={stickyTd({ fontWeight: 600, fontSize: 10 })}>販売室数</td>
-                    {dates.map(function(d) { return <td key={d} style={cellTd({ color: "#60a5fa", fontSize: 10 })}>{entrySold[d] !== undefined ? entrySold[d] : "-"}</td>; })}
+                    {dates.map(function(d) { return <td key={d} style={cellTd({ color: "#8b6914", fontSize: 10 })}>{entrySold[d] !== undefined ? entrySold[d] : "-"}</td>; })}
                   </tr>
                   {priceRows}
                 </tbody>
@@ -1177,15 +1177,15 @@ function RateTab(props) {
       });
       rankRows.push(
         <tr key={entry.roomType + "-" + entry.plan}>
-          <td style={stickyTd({ fontSize: 9, fontWeight: 500, color: hasChange ? "#e2e2e8" : "#6b7280" })}>{entry.roomType}<br /><span style={{ fontSize: 8, color: "#6b7280" }}>{(entry.plan || "").substring(0, 20)}</span></td>
+          <td style={stickyTd({ fontSize: 9, fontWeight: 500, color: hasChange ? "#2c2418" : "#9a8e7e" })}>{entry.roomType}<br /><span style={{ fontSize: 8, color: "#9a8e7e" }}>{(entry.plan || "").substring(0, 20)}</span></td>
           {dates.map(function(d) {
             var curr = entryRank[d] || "";
             var prev = prevEntry.rank ? (prevEntry.rank[d] || "") : "";
             var changed = curr && prev && curr !== prev;
-            if (!changed) return <td key={d} style={cellTd({ fontSize: 9, color: "#3f3f46" })}>·</td>;
-            return <td key={d} style={cellTd({ fontSize: 9, fontWeight: 700, background: "rgba(245,158,11,0.1)" })}>
-              <div style={{ color: "#6b7280" }}>{prev}</div>
-              <div style={{ color: "#f59e0b" }}>→{curr}</div>
+            if (!changed) return <td key={d} style={cellTd({ fontSize: 9, color: "#c9c0b3" })}>·</td>;
+            return <td key={d} style={cellTd({ fontSize: 9, fontWeight: 700, background: "rgba(176,120,40,0.1)" })}>
+              <div style={{ color: "#9a8e7e" }}>{prev}</div>
+              <div style={{ color: "#b07828" }}>→{curr}</div>
             </td>;
           })}
         </tr>
@@ -1196,15 +1196,15 @@ function RateTab(props) {
       block2 = (
         <div style={{ marginTop: 24 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-            <div style={{ width: 4, height: 18, borderRadius: 2, background: "#8b5cf6" }} />
-            <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "#c4b5fd" }}>週間ランク変動</h3>
-            <span style={{ fontSize: 10, color: "#6b7280" }}>({lastPrev.importDate} → {cur.importDate})</span>
+            <div style={{ width: 4, height: 18, borderRadius: 2, background: "#8b6914" }} />
+            <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "#b07828" }}>週間ランク変動</h3>
+            <span style={{ fontSize: 10, color: "#9a8e7e" }}>({lastPrev.importDate} → {cur.importDate})</span>
           </div>
           <div className="tw">
             <table style={{ minWidth: sampleDates.length * 50 + 200 }}>
-              <thead><tr style={{ background: "rgba(139,92,246,0.06)" }}>
-                <th style={{ position: "sticky", left: 0, zIndex: 10, background: "#141220", borderRight: "2px solid #232530", minWidth: 180, fontSize: 10, textAlign: "left", padding: "5px 8px", borderBottom: "1px solid #232530", color: "#c4b5fd" }}>ランク変動</th>
-                {dateHeaderCells(sampleDates, "rgba(139,92,246,0.04)")}
+              <thead><tr style={{ background: "rgba(139,105,20,0.06)" }}>
+                <th style={{ position: "sticky", left: 0, zIndex: 10, background: "#ede8df", borderRight: "2px solid rgba(44,36,24,0.12)", minWidth: 180, fontSize: 10, textAlign: "left", padding: "5px 8px", borderBottom: "1px solid rgba(44,36,24,0.12)", color: "#b07828" }}>ランク変動</th>
+                {dateHeaderCells(sampleDates, "rgba(139,105,20,0.04)")}
               </tr></thead>
               <tbody>{rankRows}</tbody>
             </table>
@@ -1220,10 +1220,10 @@ function RateTab(props) {
     block3 = (
       <div style={{ marginTop: 24 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-          <div style={{ width: 4, height: 18, borderRadius: 2, background: "#fbbf24" }} />
-          <h3 style={{ fontSize: 14, fontWeight: 700, color: "#fbbf24", margin: 0 }}>前年同日 料金対比</h3>
+          <div style={{ width: 4, height: 18, borderRadius: 2, background: "#8b6914" }} />
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: "#8b6914", margin: 0 }}>前年同日 料金対比</h3>
         </div>
-        <div style={{ padding: "16px 14px", borderRadius: 8, border: "1px dashed #3f3f46", color: "#6b7280", fontSize: 12 }}>前年対比　データなし（±10日以内の前年スナップショットが見つかりません）</div>
+        <div style={{ padding: "16px 14px", borderRadius: 8, border: "1px dashed #c9c0b3", color: "#9a8e7e", fontSize: 12 }}>前年対比　データなし（±10日以内の前年スナップショットが見つかりません）</div>
       </div>
     );
   } else if (yoySnap && yoyPrice.length > 0) {
@@ -1237,15 +1237,15 @@ function RateTab(props) {
 
       // Rank comparison row
       yoyEntryRows.push(
-        <tr key={entry.roomType + "-" + entry.plan + "-hdr"} style={{ background: "rgba(251,191,36,0.06)" }}>
-          <td style={stickyTd({ fontSize: 10, fontWeight: 700, color: "#fbbf24", background: "#1f1b13" })}>{entry.roomType}<br /><span style={{ fontSize: 8, color: "#a3842a" }}>{(entry.plan || "").substring(0, 25)}</span></td>
-          <td style={cellTd({ fontSize: 9, fontWeight: 600, color: "#fbbf24" })}>ランク</td>
+        <tr key={entry.roomType + "-" + entry.plan + "-hdr"} style={{ background: "rgba(139,105,20,0.06)" }}>
+          <td style={stickyTd({ fontSize: 10, fontWeight: 700, color: "#8b6914", background: "#f0ebe2" })}>{entry.roomType}<br /><span style={{ fontSize: 8, color: "#b07828" }}>{(entry.plan || "").substring(0, 25)}</span></td>
+          <td style={cellTd({ fontSize: 9, fontWeight: 600, color: "#8b6914" })}>ランク</td>
           {dates.map(function(d) {
             var yoyD = getYoyDate(d);
             var curr = entryRank[d] || "";
             var prev = yoyD && yoyEntry.rank ? (yoyEntry.rank[yoyD] || "") : "";
             var changed = curr && prev && curr !== prev;
-            return <td key={d} style={cellTd({ fontSize: 9, color: changed ? "#f59e0b" : "#6b7280" })}>
+            return <td key={d} style={cellTd({ fontSize: 9, color: changed ? "#b07828" : "#9a8e7e" })}>
               {prev ? (changed ? prev + "→" + curr : curr) : curr || "-"}
             </td>;
           })}
@@ -1260,15 +1260,15 @@ function RateTab(props) {
         var yoyPrices = yoyEntry.prices ? (yoyEntry.prices[persons] || {}) : {};
         yoyEntryRows.push(
           <tr key={entry.roomType + "-" + entry.plan + "-" + persons}>
-            <td style={stickyTd({ fontSize: 9, color: "#a3842a", paddingLeft: 12, background: "#161413" })}></td>
-            <td style={cellTd({ fontSize: 9, color: "#fbbf24" })}>{persons}差額</td>
+            <td style={stickyTd({ fontSize: 9, color: "#b07828", paddingLeft: 12, background: "#f5f1ea" })}></td>
+            <td style={cellTd({ fontSize: 9, color: "#8b6914" })}>{persons}差額</td>
             {dates.map(function(d) {
               var yoyD = getYoyDate(d);
               var curP = curPrices[d] || 0;
               var yoyP = yoyD ? (yoyPrices[yoyD] || 0) : 0;
-              if (!curP || !yoyP) return <td key={d} style={cellTd({ fontSize: 9, color: "#3f3f46" })}>-</td>;
+              if (!curP || !yoyP) return <td key={d} style={cellTd({ fontSize: 9, color: "#c9c0b3" })}>-</td>;
               var diff = curP - yoyP;
-              var color = diff > 0 ? "#22c55e" : diff < 0 ? "#ef4444" : "#6b7280";
+              var color = diff > 0 ? "#2d7a2d" : diff < 0 ? "#c03030" : "#9a8e7e";
               var text = diff > 0 ? "+" + diff.toLocaleString() : diff < 0 ? diff.toLocaleString() : "·";
               return <td key={d} style={cellTd({ fontSize: 9, fontWeight: diff !== 0 ? 600 : 400, color: color })}>{text}</td>;
             })}
@@ -1282,21 +1282,21 @@ function RateTab(props) {
       block3 = (
         <div style={{ marginTop: 24 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-            <div style={{ width: 4, height: 18, borderRadius: 2, background: "#fbbf24" }} />
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: "#fbbf24", margin: 0 }}>前年同日 料金対比</h3>
-            <span style={{ fontSize: 10, color: "#6b7280" }}>({yoySnap.importDate} 取込 / 曜日合わせ: 52週前)</span>
+            <div style={{ width: 4, height: 18, borderRadius: 2, background: "#8b6914" }} />
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: "#8b6914", margin: 0 }}>前年同日 料金対比</h3>
+            <span style={{ fontSize: 10, color: "#9a8e7e" }}>({yoySnap.importDate} 取込 / 曜日合わせ: 52週前)</span>
           </div>
           <div className="tw">
             <table style={{ minWidth: sampleDates2.length * 50 + 220 }}>
-              <thead><tr style={{ background: "rgba(251,191,36,0.06)" }}>
-                <th style={{ position: "sticky", left: 0, zIndex: 10, background: "#1a1813", borderRight: "2px solid #232530", minWidth: 180, fontSize: 10, textAlign: "left", padding: "5px 8px", borderBottom: "1px solid #232530", color: "#fbbf24" }}>前年料金対比</th>
-                <th style={{ minWidth: 50, fontSize: 9, color: "#fbbf24", padding: "5px 4px", borderBottom: "1px solid #232530", background: "rgba(251,191,36,0.04)" }}></th>
+              <thead><tr style={{ background: "rgba(139,105,20,0.06)" }}>
+                <th style={{ position: "sticky", left: 0, zIndex: 10, background: "#f0ebe2", borderRight: "2px solid rgba(44,36,24,0.12)", minWidth: 180, fontSize: 10, textAlign: "left", padding: "5px 8px", borderBottom: "1px solid rgba(44,36,24,0.12)", color: "#8b6914" }}>前年料金対比</th>
+                <th style={{ minWidth: 50, fontSize: 9, color: "#8b6914", padding: "5px 4px", borderBottom: "1px solid rgba(44,36,24,0.12)", background: "rgba(139,105,20,0.04)" }}></th>
                 {sampleDates2.map(function(d) {
                   var yoyD = getYoyDate(d);
                   var pd = parseMMDD(d, year);
                   var dow = pd ? getDow(pd.year, pd.month, pd.day) : "";
-                  var dowColor = dow === "日" ? "#ef4444" : dow === "土" ? "#3b82f6" : "#fbbf24";
-                  return <th key={d} style={{ textAlign: "center", minWidth: 46, padding: "5px 6px", borderBottom: "1px solid #232530", background: "rgba(251,191,36,0.04)" }}>
+                  var dowColor = dow === "日" ? "#c03030" : dow === "土" ? "#8b6914" : "#8b6914";
+                  return <th key={d} style={{ textAlign: "center", minWidth: 46, padding: "5px 6px", borderBottom: "1px solid rgba(44,36,24,0.12)", background: "rgba(139,105,20,0.04)" }}>
                     <div style={{ fontSize: 11, fontWeight: 600, color: dowColor }}>{yoyD || "?"}</div>
                     <div style={{ fontSize: 9, opacity: 0.5, color: dowColor }}>{dow}</div>
                   </th>;
@@ -1336,7 +1336,7 @@ function SummaryTab(props) {
                 <span style={{ color: occColor(ms.occ), fontWeight: 700 }}>{ms.occ}%</span>
               </div>
               <div className="bt"><div className="bf" style={{ width: ms.occ + "%", background: occColor(ms.occ) }} /></div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#6b7280", marginTop: 3 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#9a8e7e", marginTop: 3 }}>
                 <span>販売: {ms.sold.toLocaleString()}室</span><span>残室: {ms.rem.toLocaleString()}室</span><span>{ms.days}日</span>
               </div>
             </div>
@@ -1360,15 +1360,15 @@ function SummaryTab(props) {
       <div className="card">
         <h3 style={{ fontSize: 13, fontWeight: 700, marginBottom: 14 }}>💡 レート調整アクション</h3>
         <div style={{ marginBottom: 14 }}>
-          <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 6, color: "#ef4444" }}>🔺 レートアップ検討（稼働85%↑）</div>
+          <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 6, color: "#c03030" }}>🔺 レートアップ検討（稼働85%↑）</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-            {rateUp.length > 0 ? rateUp.slice(0, 15).map(function(d) { return <span key={d} style={{ padding: "2px 7px", borderRadius: 4, background: "rgba(239,68,68,0.12)", color: "#ef4444", fontSize: 10 }}>{d}</span>; }) : <span style={{ color: "#6b7280", fontSize: 11 }}>該当なし</span>}
+            {rateUp.length > 0 ? rateUp.slice(0, 15).map(function(d) { return <span key={d} style={{ padding: "2px 7px", borderRadius: 4, background: "rgba(192,48,48,0.12)", color: "#c03030", fontSize: 10 }}>{d}</span>; }) : <span style={{ color: "#9a8e7e", fontSize: 11 }}>該当なし</span>}
           </div>
         </div>
         <div>
-          <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 6, color: "#22c55e" }}>🔽 レートダウン検討（稼働40%↓）</div>
+          <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 6, color: "#2d7a2d" }}>🔽 レートダウン検討（稼働40%↓）</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-            {rateDown.length > 0 ? rateDown.slice(0, 15).map(function(d) { return <span key={d} style={{ padding: "2px 7px", borderRadius: 4, background: "rgba(34,197,94,0.08)", color: "#22c55e", fontSize: 10 }}>{d}</span>; }) : <span style={{ color: "#6b7280", fontSize: 11 }}>該当なし</span>}
+            {rateDown.length > 0 ? rateDown.slice(0, 15).map(function(d) { return <span key={d} style={{ padding: "2px 7px", borderRadius: 4, background: "rgba(45,122,45,0.08)", color: "#2d7a2d", fontSize: 10 }}>{d}</span>; }) : <span style={{ color: "#9a8e7e", fontSize: 11 }}>該当なし</span>}
           </div>
         </div>
       </div>
@@ -1376,12 +1376,12 @@ function SummaryTab(props) {
         <h3 style={{ fontSize: 13, fontWeight: 700, marginBottom: 14 }}>取込履歴</h3>
         {snaps.map(function(s, i) {
           return (
-            <div key={s.id} style={{ padding: "8px 10px", borderRadius: 7, marginBottom: 6, background: i === snaps.length - 1 ? "rgba(59,130,246,0.08)" : "transparent", border: "1px solid #232530" }}>
+            <div key={s.id} style={{ padding: "8px 10px", borderRadius: 7, marginBottom: 6, background: i === snaps.length - 1 ? "rgba(139,105,20,0.08)" : "transparent", border: "1px solid rgba(44,36,24,0.12)" }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ fontWeight: 600, fontSize: 11 }}>{s.importDate}{i === snaps.length - 1 ? " ★" : ""}</span>
-                <span style={{ fontSize: 10, color: "#6b7280" }}>{s.dates ? s.dates.length : 0}日</span>
+                <span style={{ fontSize: 10, color: "#9a8e7e" }}>{s.dates ? s.dates.length : 0}日</span>
               </div>
-              <div style={{ fontSize: 9, color: "#6b7280", marginTop: 2 }}>{s.rooms ? s.rooms.length : 0}室タイプ / {s.priceEntries ? s.priceEntries.length : 0}料金</div>
+              <div style={{ fontSize: 9, color: "#9a8e7e", marginTop: 2 }}>{s.rooms ? s.rooms.length : 0}室タイプ / {s.priceEntries ? s.priceEntries.length : 0}料金</div>
             </div>
           );
         })}
