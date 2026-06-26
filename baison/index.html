@@ -1,0 +1,1390 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>町屋ホテルbaison - 町屋ホテルbaison 在庫＆レート</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  body { margin: 0; padding: 0; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+// Globals from CDN
+const { useState, useEffect, useRef, useMemo } = React;
+
+// Storage adapter - Google Sheets / localStorage auto-switch
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbwVfe2tEffDCMSLJPSaVxJt3xIuBleL2oU8nf8J5XIi9WPUU1ZLWGtiCcxklPH094Sq/exec';
+
+var GoogleSheetsStorage = (function() {
+  var cache = {};
+
+  function apiGet(action, params) {
+    var url = GAS_URL + '?action=' + action;
+    if (params) {
+      Object.keys(params).forEach(function(k) {
+        url += '&' + k + '=' + encodeURIComponent(params[k]);
+      });
+    }
+    return fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+      if (data.error) throw new Error(data.error);
+      return data;
+    });
+  }
+
+  function apiPost(body) {
+    return fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(body)
+    }).then(function(r) { return r.json(); }).then(function(data) {
+      if (data.error) throw new Error(data.error);
+      return data;
+    });
+  }
+
+  async function get(key) {
+    if (cache[key]) return { key: key, value: cache[key] };
+    try {
+      var data = await apiGet('getAllFull');
+      var snaps = data.snapshots || [];
+      var value = JSON.stringify(snaps);
+      cache[key] = value;
+      return { key: key, value: value };
+    } catch(e) {
+      console.error('GoogleSheetsStorage.get error:', e);
+      return null;
+    }
+  }
+
+  async function set(key, value) {
+    try {
+      var newSnaps = JSON.parse(value);
+      var oldSnaps = cache[key] ? JSON.parse(cache[key]) : [];
+      var oldMap = {};
+      oldSnaps.forEach(function(s) { oldMap[String(s.id)] = s; });
+      var newMap = {};
+      newSnaps.forEach(function(s) { newMap[String(s.id)] = s; });
+      var deletedIds = [];
+      Object.keys(oldMap).forEach(function(id) { if (!newMap[id]) deletedIds.push(id); });
+      var upsertSnaps = [];
+      newSnaps.forEach(function(s) {
+        var oldJson = oldMap[String(s.id)] ? JSON.stringify(oldMap[String(s.id)]) : '';
+        if (oldJson !== JSON.stringify(s)) upsertSnaps.push(s);
+      });
+      for (var i = 0; i < deletedIds.length; i++) {
+        await apiPost({ action: 'deleteSnapshot', id: deletedIds[i] });
+      }
+      if (upsertSnaps.length > 0) {
+        if (upsertSnaps.length <= 3) {
+          for (var j = 0; j < upsertSnaps.length; j++) {
+            await apiPost({ action: 'saveSnapshot', snapshot: upsertSnaps[j] });
+          }
+        } else {
+          await apiPost({ action: 'saveBulk', snapshots: upsertSnaps });
+        }
+      }
+      cache[key] = value;
+      return { key: key, value: value };
+    } catch(e) {
+      console.error('GoogleSheetsStorage.set error:', e);
+      try {
+        var allSnaps = JSON.parse(value);
+        await apiPost({ action: 'saveBulk', snapshots: allSnaps });
+        cache[key] = value;
+        return { key: key, value: value };
+      } catch(e2) {
+        console.error('GoogleSheetsStorage.set bulk fallback error:', e2);
+        return null;
+      }
+    }
+  }
+
+  async function del(key) {
+    try {
+      var data = await apiGet('getAll');
+      var snaps = data.snapshots || [];
+      for (var i = 0; i < snaps.length; i++) {
+        await apiPost({ action: 'deleteSnapshot', id: snaps[i].id });
+      }
+      delete cache[key];
+      return { key: key, deleted: true };
+    } catch(e) {
+      console.error('GoogleSheetsStorage.delete error:', e);
+      return null;
+    }
+  }
+
+  async function migrateFromLocalStorage(storageKey) {
+    var localData = localStorage.getItem(storageKey);
+    if (!localData) { console.log('localStorageにデータなし: ' + storageKey); return { migrated: 0 }; }
+    var snaps = JSON.parse(localData);
+    console.log('移行対象: ' + snaps.length + ' スナップショット');
+    var result = await apiPost({ action: 'saveBulk', snapshots: snaps });
+    console.log('移行完了:', result);
+    cache[storageKey] = localData;
+    return { migrated: snaps.length, result: result };
+  }
+
+  async function testConnection() {
+    try {
+      var data = await apiGet('getConfig');
+      console.log('Google Sheets接続OK:', data);
+      return { connected: true, config: data.config };
+    } catch(e) {
+      console.error('Google Sheets接続エラー:', e);
+      return { connected: false, error: e.message };
+    }
+  }
+
+  return { get: get, set: set, delete: del, migrateFromLocalStorage: migrateFromLocalStorage, testConnection: testConnection };
+})();
+
+if (GAS_URL && GAS_URL.indexOf('script.google.com') !== -1) {
+  window.storage = GoogleSheetsStorage;
+  console.log('📊 ストレージ: Google Sheets');
+} else {
+  window.storage = {
+    async get(key) {
+      try { var val = localStorage.getItem(key); if (val !== null) return { key: key, value: val }; return null; } catch(e) { return null; }
+    },
+    async set(key, value) {
+      try { localStorage.setItem(key, value); return { key: key, value: value }; } catch(e) { return null; }
+    },
+    async delete(key) {
+      try { localStorage.removeItem(key); return { key: key, deleted: true }; } catch(e) { return null; }
+    }
+  };
+  console.log('💾 ストレージ: localStorage');
+}
+
+
+
+
+// Room name normalization for matching across InventoryData, PriceData, and legacy data
+var ROOM_ALIASES = {};
+function normalizeRoomName(name) {
+  if (!name) return "";
+  var n = String(name).trim();
+  return ROOM_ALIASES[n] || n;
+}
+function roomMatch(name1, name2) {
+  return normalizeRoomName(name1) === normalizeRoomName(name2);
+}
+function planMatch(plan1, plan2) {
+  if (plan1 === plan2) return true;
+  // Extract plan code (first word before space or dot)
+  var code1 = String(plan1 || "").trim().split(/[\s　・･]/)[0];
+  var code2 = String(plan2 || "").trim().split(/[\s　・･]/)[0];
+  return code1 && code2 && code1 === code2;
+}
+
+const parseMMDD = (s, baseYear) => {
+  if (!s || typeof s !== "string") return null;
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})$/);
+  if (!m) return null;
+  const month = parseInt(m[1]), day = parseInt(m[2]);
+  let year = baseYear;
+  if (month < 3 && baseYear) year = baseYear + 1;
+  return { month, day, year };
+};
+
+const getDow = (y, m, d) => ["日","月","火","水","木","金","土"][new Date(y, m-1, d).getDay()];
+const isWe = (y, m, d) => { const w = new Date(y, m-1, d).getDay(); return w === 0 || w === 6; };
+
+const occRate = (sold, rem) => {
+  const s = typeof sold === "number" ? sold : parseInt(sold) || 0;
+  const r = typeof rem === "number" ? rem : parseInt(rem) || 0;
+  return (s + r === 0) ? null : Math.round((s / (s + r)) * 100);
+};
+
+const occColor = r => r === null ? "#9a8e7e" : r >= 90 ? "#c03030" : r >= 70 ? "#b07828" : r >= 50 ? "#2d7a2d" : "#9a8e7e";
+const occBg = r => r === null ? "transparent" : r >= 90 ? "rgba(192,48,48,0.12)" : r >= 70 ? "rgba(176,120,40,0.10)" : r >= 50 ? "rgba(45,122,45,0.08)" : "transparent";
+const rankColor = rank => { if (!rank) return "#9a8e7e"; const c = rank.charAt(0); return "STUVW".includes(c) ? "#c03030" : "OPQ".includes(c) ? "#b07828" : "KLMN".includes(c) ? "#b07828" : "GHI".includes(c) ? "#2d7a2d" : "#9a8e7e"; };
+
+function parseInventory(wb) {
+  const sh = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sh, { header: 1, defval: "" });
+  let period = "", dates = [], totRem = {}, totSold = {}, rooms = [], cur = null, year = new Date().getFullYear();
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (r[1] && typeof r[1] === "string" && r[1].includes("指定期間")) { period = r[1]; const ym = r[1].match(/(\d{4})/); if (ym) year = parseInt(ym[1]); continue; }
+    if (!dates.length && r[3] && typeof r[3] === "string" && r[3].match(/^\d{2}\/\d{2}$/)) { for (let c = 3; c < r.length; c++) { if (r[c] && typeof r[c] === "string" && r[c].match(/^\d{2}\/\d{2}$/)) dates.push(r[c]); } continue; }
+    if (r[2] === "総残室数" && !r[1]) { for (let c = 3; c < r.length && c-3 < dates.length; c++) totRem[dates[c-3]] = r[c] === "" ? 0 : parseInt(r[c]) || 0; continue; }
+    if (r[2] === "総販売数" && !r[1]) { for (let c = 3; c < r.length && c-3 < dates.length; c++) totSold[dates[c-3]] = r[c] === "" ? 0 : parseInt(r[c]) || 0; continue; }
+    if (r[0] && r[2] === "残室数" && !r[1]) { cur = { name: r[0], rem: {}, sold: {} }; for (let c = 3; c < r.length && c-3 < dates.length; c++) { const v = r[c]; cur.rem[dates[c-3]] = v === "止" ? "止" : (v === "" ? 0 : parseInt(v) || 0); } continue; }
+    if (cur && r[2] === "販売室数" && !r[0] && !r[1]) { for (let c = 3; c < r.length && c-3 < dates.length; c++) cur.sold[dates[c-3]] = r[c] === "" ? 0 : parseInt(r[c]) || 0; rooms.push(cur); cur = null; }
+  }
+  return { period, year, dates, totRem, totSold, rooms };
+}
+
+function parsePrice(wb) {
+  const sh = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sh, { header: 1, defval: "" });
+  let entries = [], cur = null, dates = [];
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (r[0] && r[1] && r[2] === "月日") { cur = { roomType: r[0], plan: r[1], dates: [], status: {}, soldRooms: {}, rank: {}, prices: {} }; for (let c = 3; c < r.length; c++) { if (r[c] && typeof r[c] === "string" && r[c].match(/^\d{2}\/\d{2}$/)) cur.dates.push(r[c]); } dates = cur.dates; continue; }
+    if (!cur) continue;
+    if (!r[0] && !r[1] && !r[2] && r[3] && typeof r[3] === "string" && (r[3] === "売" || r[3] === "止")) { for (let c = 3; c < r.length && c-3 < dates.length; c++) cur.status[dates[c-3]] = r[c]; continue; }
+    if (r[2] === "販売室数") { for (let c = 3; c < r.length && c-3 < dates.length; c++) cur.soldRooms[dates[c-3]] = parseInt(r[c]) || 0; continue; }
+    if (r[2] === "ランク") { for (let c = 3; c < r.length && c-3 < dates.length; c++) cur.rank[dates[c-3]] = r[c] || ""; continue; }
+    if (r[2] && typeof r[2] === "string" && r[2].match(/^\d名$/)) { const p = r[2]; cur.prices[p] = {}; for (let c = 3; c < r.length && c-3 < dates.length; c++) { const v = r[c]; cur.prices[p][dates[c-3]] = typeof v === "string" ? parseInt(v.replace(/,/g, "")) || 0 : v || 0; } continue; }
+    if (r.every(v => v === "" || v === undefined || v === null)) { if (cur && cur.dates.length) entries.push(cur); cur = null; }
+  }
+  if (cur && cur.dates.length) entries.push(cur);
+  return { entries };
+}
+
+function parseLegacyExcel(wb) {
+  var snapshots = [];
+  
+  wb.SheetNames.forEach(function(sheetName) {
+    if (sheetName === "テンプレート" || sheetName === "説明") return;
+    
+    var sh = wb.Sheets[sheetName];
+    var rows = XLSX.utils.sheet_to_json(sh, { header: 1, defval: "" });
+    if (rows.length < 5) return;
+
+    // Row 1: A="取込日", B=YYYY-MM-DD
+    var importDate = "";
+    var row1 = rows[0] || [];
+    if (row1[1] && typeof row1[1] === "string" && row1[1].match(/^\d{4}-\d{2}-\d{2}$/)) {
+      importDate = row1[1];
+    } else {
+      var sn = sheetName;
+      if (sn.length === 6 && /^\d{6}$/.test(sn)) {
+        importDate = (parseInt(sn.substring(0,2)) + 2000) + "-" + sn.substring(2,4) + "-" + sn.substring(4,6);
+      } else if (sn.length === 8 && /^\d{8}$/.test(sn)) {
+        importDate = sn.substring(0,4) + "-" + sn.substring(4,6) + "-" + sn.substring(6,8);
+      }
+    }
+    if (!importDate) return;
+
+    var dp = importDate.split("-");
+    var iYear = parseInt(dp[0]), iMonth = parseInt(dp[1]), iDay = parseInt(dp[2]);
+    if (iMonth < 1 || iMonth > 12 || iDay < 1 || iDay > 31) return;
+
+    // Row 2: date headers from D column onwards
+    var dates = [];
+    var row2 = rows[1] || [];
+    for (var c = 3; c < row2.length; c++) {
+      var v = row2[c];
+      if (v && typeof v === "string" && v.match(/^\d{1,2}\/\d{1,2}$/)) {
+        var pts = v.split("/");
+        dates.push(String(pts[0]).padStart(2, "0") + "/" + String(pts[1]).padStart(2, "0"));
+      }
+    }
+    if (dates.length < 3) return;
+
+    // Row 3: total remaining, Row 4: total sold
+    var totRem = {}, totSold = {};
+    var row3 = rows[2] || [];
+    var row4 = rows[3] || [];
+    for (var c2 = 3; c2 < row3.length && c2 - 3 < dates.length; c2++) {
+      totRem[dates[c2 - 3]] = row3[c2] === "" ? 0 : parseInt(row3[c2]) || 0;
+    }
+    for (var c3 = 3; c3 < row4.length && c3 - 3 < dates.length; c3++) {
+      totSold[dates[c3 - 3]] = row4[c3] === "" ? 0 : parseInt(row4[c3]) || 0;
+    }
+
+    // Row 5+: room types - A=name, B="残室数"/"販売室数"
+    var rooms = [];
+    var curRoom = null;
+    for (var ri = 4; ri < rows.length; ri++) {
+      var rr = rows[ri] || [];
+      var aVal = rr[0] || "";
+      var bVal = rr[1] || "";
+      
+      if (bVal === "残室数") {
+        var roomName = aVal ? String(aVal) : "";
+        if (!roomName || roomName === "（総計）") continue;
+        curRoom = { name: roomName, rem: {}, sold: {} };
+        for (var cc = 3; cc < rr.length && cc - 3 < dates.length; cc++) {
+          var val = rr[cc];
+          curRoom.rem[dates[cc - 3]] = val === "止" ? "止" : (val === "" ? 0 : parseInt(val) || 0);
+        }
+        continue;
+      }
+      if (curRoom && bVal === "販売室数") {
+        for (var cc2 = 3; cc2 < rr.length && cc2 - 3 < dates.length; cc2++) {
+          curRoom.sold[dates[cc2 - 3]] = rr[cc2] === "" ? 0 : parseInt(rr[cc2]) || 0;
+        }
+        rooms.push(curRoom);
+        curRoom = null;
+        continue;
+      }
+    }
+
+    // Parse price entries: look for rows with C="月日"
+    var priceEntries = [];
+    var curEntry = null;
+    for (var pi = 4; pi < rows.length; pi++) {
+      var pr = rows[pi] || [];
+      var pA = String(pr[0] || "").trim();
+      var pB = String(pr[1] || "").trim();
+      var pC = String(pr[2] || "").trim();
+      
+      if (pC === "月日") {
+        if (curEntry && curEntry.dates.length) priceEntries.push(curEntry);
+        var rtName = pA || pB || "unknown";
+        var plName = pA ? pB : "";
+        curEntry = { roomType: rtName, plan: plName.replace(/\n/g, " ").trim(), dates: [], status: {}, soldRooms: {}, rank: {}, prices: {} };
+        for (var pc = 3; pc < pr.length; pc++) {
+          var pv = pr[pc];
+          if (pv && typeof pv === "string" && pv.match(/^\d{1,2}\/\d{1,2}$/)) {
+            var pp = pv.split("/");
+            curEntry.dates.push(String(pp[0]).padStart(2,"0") + "/" + String(pp[1]).padStart(2,"0"));
+          }
+        }
+        continue;
+      }
+      if (!curEntry) continue;
+      var pDates = curEntry.dates;
+      // Status row (売/止) - check col D (index 3) directly
+      if (!pC && pr[3] && (String(pr[3]).trim() === "売" || String(pr[3]).trim() === "止")) {
+        for (var sc = 3; sc < pr.length && sc - 3 < pDates.length; sc++) curEntry.status[pDates[sc-3]] = String(pr[sc] || "").trim();
+        continue;
+      }
+      if (pC === "販売室数") {
+        for (var vc = 3; vc < pr.length && vc - 3 < pDates.length; vc++) curEntry.soldRooms[pDates[vc-3]] = parseInt(pr[vc]) || 0;
+        continue;
+      }
+      if (pC === "ランク") {
+        for (var rc = 3; rc < pr.length && rc - 3 < pDates.length; rc++) curEntry.rank[pDates[rc-3]] = String(pr[rc] || "").trim();
+        continue;
+      }
+      if (pC && pC.match(/^\d名$/)) {
+        curEntry.prices[pC] = {};
+        for (var xc = 3; xc < pr.length && xc - 3 < pDates.length; xc++) {
+          var xv = pr[xc];
+          curEntry.prices[pC][pDates[xc-3]] = typeof xv === "string" ? parseInt(xv.replace(/,/g,"")) || 0 : (typeof xv === "number" ? xv : 0);
+        }
+        continue;
+      }
+      // Empty row: check if all data cols are empty
+      var hasAnyData = false;
+      for (var ec = 0; ec < Math.min(8, pr.length); ec++) {
+        if (pr[ec] !== "" && pr[ec] !== undefined && pr[ec] !== null) { hasAnyData = true; break; }
+      }
+      if (!hasAnyData) {
+        if (curEntry && curEntry.dates.length) priceEntries.push(curEntry);
+        curEntry = null;
+      }
+    }
+    if (curEntry && curEntry.dates.length) priceEntries.push(curEntry);
+
+    snapshots.push({
+      id: Date.now() + Math.floor(Math.random() * 10000),
+      importDate: importDate,
+      period: "指定期間 " + importDate,
+      year: iYear,
+      dates: dates,
+      totRem: totRem,
+      totSold: totSold,
+      rooms: rooms,
+      priceEntries: priceEntries,
+      isLegacy: true
+    });
+    console.log("Legacy parsed: " + sheetName + " -> " + importDate + " dates=" + dates.length + " rooms=" + rooms.length + " prices=" + priceEntries.length + " roomNames=" + rooms.map(function(r){return r.name;}).join(","));
+  });
+
+  return snapshots;
+}
+
+function stickyTd(extra) {
+  return { position: "sticky", left: 0, zIndex: 5, background: "#f5f1ea", borderRight: "2px solid rgba(44,36,24,0.12)", padding: "5px 8px", borderBottom: "1px solid rgba(44,36,24,0.12)", whiteSpace: "nowrap", ...extra };
+}
+
+function cellTd(extra) {
+  return { textAlign: "center", padding: "5px 6px", borderBottom: "1px solid rgba(44,36,24,0.12)", whiteSpace: "nowrap", ...extra };
+}
+
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans JP',sans-serif;background:#faf8f4;color:#2c2418}
+.hdr{background:linear-gradient(135deg,#f5f1ea,#ede8df);border-bottom:1px solid rgba(44,36,24,0.12);padding:14px 20px;position:sticky;top:0;z-index:100}
+.ttl{font-size:18px;font-weight:700;background:linear-gradient(135deg,#8b6914,#b07828);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sub{font-size:10px;color:#9a8e7e;margin-top:2px}
+.btn{padding:7px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:none}
+.bp{background:#8b6914;color:#fff}.bg2{background:transparent;border:1px solid rgba(44,36,24,0.12);color:#9a8e7e}
+.bs{padding:3px 9px;font-size:10px;border-radius:5px}
+.tabs{display:flex;gap:3px;margin-top:10px}
+.tab{padding:5px 14px;border-radius:6px;font-size:12px;font-weight:600;border:none;cursor:pointer}
+.ton{background:#8b6914;color:#fff}.tof{background:transparent;color:#9a8e7e}
+.sbar{margin-top:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.sb{padding:3px 9px;border-radius:5px;font-size:10px;font-weight:500;cursor:pointer}
+.son{border:1px solid #8b6914;background:rgba(139,105,20,0.12);color:#8b6914}
+.sof{border:1px solid rgba(44,36,24,0.12);background:transparent;color:#9a8e7e}
+.tw{overflow-x:auto;border-radius:10px;border:1px solid rgba(44,36,24,0.12)}
+table{border-collapse:collapse;font-size:11px;width:100%}
+th,td{padding:5px 6px;white-space:nowrap;border-bottom:1px solid rgba(44,36,24,0.12)}
+th{font-weight:600}
+.card{background:#f5f1ea;border-radius:10px;border:1px solid rgba(44,36,24,0.12);padding:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
+.bt{background:#ede8df;border-radius:3px;height:7px;overflow:hidden}
+.bf{height:100%;border-radius:3px}
+`;
+
+function generateDemoData() {
+  var dates = [];
+  var d = new Date(2026, 4, 3);
+  for (var i = 0; i < 45; i++) {
+    var mm = String(d.getMonth() + 1).padStart(2, "0");
+    var dd = String(d.getDate()).padStart(2, "0");
+    dates.push(mm + "/" + dd);
+    d.setDate(d.getDate() + 1);
+  }
+  var roomNames = ["リニューアル【本館】セミダブル<禁煙>","【別館】セミダブル11平米<禁煙>","リニューアル【本館】ダブル<禁煙>","【別館】ツイン・街側<禁煙>","【別館】ツイン・湖側<禁煙>","【別館】スタジオツイン・湖側<禁煙>","NEW【別館】セミダブル・街側","NEW【別館】デラックスダブル・湖側"];
+  var roomMaxes = [29, 6, 10, 6, 10, 6, 18, 11];
+
+  function makeSnap(id, importDate, year, soldBias, remBias) {
+    var totRem = {}, totSold = {}, rooms = [];
+    roomNames.forEach(function(name, ri) {
+      var max = roomMaxes[ri];
+      var rm = {}, sl = {};
+      dates.forEach(function(dt, di) {
+        var pd = parseMMDD(dt, year);
+        var we = pd ? isWe(pd.year, pd.month, pd.day) : false;
+        var baseSold = Math.floor(max * (0.5 + Math.random() * 0.4) * soldBias);
+        if (we) baseSold = Math.min(max, Math.floor(baseSold * 1.3));
+        if (di < 10) baseSold = Math.min(max, Math.floor(baseSold * 1.2));
+        if (di > 30) baseSold = Math.max(0, Math.floor(baseSold * 0.7));
+        baseSold = Math.min(max, Math.max(0, baseSold));
+        var baseRem = Math.max(0, max - baseSold + Math.floor((Math.random() - 0.5) * remBias));
+        rm[dt] = baseRem;
+        sl[dt] = baseSold;
+        totRem[dt] = (totRem[dt] || 0) + baseRem;
+        totSold[dt] = (totSold[dt] || 0) + baseSold;
+      });
+      rooms.push({ name: name, rem: rm, sold: sl });
+    });
+    var ranks = ["E60","F65","G70","H75","I80","J85","K90","P130","Q150","R170","U230"];
+    var priceEntries = [
+      { roomType: "リニューアル【本館】セミダブル<禁煙>", plan: "001_スタンダード(素泊)", dates: dates, status: {}, soldRooms: {}, rank: {}, prices: {} },
+      { roomType: "【別館】ツイン・街側<禁煙>", plan: "001_スタンダード(素泊)", dates: dates, status: {}, soldRooms: {}, rank: {}, prices: {} }
+    ];
+    priceEntries.forEach(function(pe) {
+      pe.prices["1名"] = {};
+      pe.prices["2名"] = {};
+      dates.forEach(function(dt, di) {
+        pe.status[dt] = "売";
+        pe.soldRooms[dt] = Math.floor(Math.random() * 8);
+        var ri = Math.floor(Math.random() * ranks.length);
+        pe.rank[dt] = ranks[ri];
+        var basePrice = parseInt(ranks[ri].substring(1)) * 100;
+        pe.prices["1名"][dt] = basePrice + 500;
+        pe.prices["2名"][dt] = Math.floor(basePrice * 0.65);
+      });
+    });
+    return { id: id, importDate: importDate, period: "指定期間 " + year + "/05/03 - " + year + "/06/16", year: year, dates: dates, totRem: totRem, totSold: totSold, rooms: rooms, priceEntries: priceEntries };
+  }
+
+  var prevYear = makeSnap(1001, "2025-05-10", 2025, 0.85, 4);
+  var prevWeek = makeSnap(1002, "2026-04-26", 2026, 0.9, 3);
+  var current = makeSnap(1003, "2026-05-03", 2026, 1.0, 2);
+  return [prevYear, prevWeek, current];
+}
+
+function App() {
+  const [snaps, setSnaps] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
+  const [tab, setTab] = useState("inventory");
+  const [selIdx, setSelIdx] = useState(null);
+  const [expanded, setExpanded] = useState(new Set());
+  const [demoMode, setDemoMode] = useState(false);
+  const [toast, setToast] = useState("");
+
+  useEffect(function loadData() {
+    (async function() {
+      try {
+        const r = await window.storage.get("inventory-baison");
+        if (r && r.value) {
+          const d = JSON.parse(r.value);
+          // GASはシート行順で返すため、importDate昇順にソートしておく
+          // （週間比較が末尾=直前スナップショット前提のため。未ソートだと行順次第で誤った過去データと比較される）
+          d.sort(function(a, b) { return a.importDate < b.importDate ? -1 : (a.importDate > b.importDate ? 1 : 0); });
+          setSnaps(d);
+          if (d.length) {
+            var bestIdx = d.length - 1;
+            for (var li = d.length - 1; li >= 0; li--) {
+              if (!d[li].isLegacy) { bestIdx = li; break; }
+            }
+            setSelIdx(bestIdx);
+          }
+          setLoading(false);
+          return;
+        }
+      } catch(e) { /* no data */ }
+      var demo = generateDemoData();
+      setSnaps(demo);
+      setSelIdx(demo.length - 1);
+      setDemoMode(true);
+      setLoading(false);
+    })();
+  }, []);
+
+  const save = async function(s) { try { await window.storage.set("inventory-baison", JSON.stringify(s)); } catch(e) {} };
+
+  const handleImport = async function(e) {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    setImporting(true);
+    try {
+      let inv = null, price = null;
+      for (const f of files) {
+        const ab = await f.arrayBuffer();
+        const wb = XLSX.read(ab, { type: "array" });
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" });
+        let isP = false;
+        for (let i = 0; i < Math.min(10, rows.length); i++) {
+          if (rows[i].some(function(v) { return typeof v === "string" && v.includes("プラン・料金データ"); })) { isP = true; break; }
+          if (rows[i].some(function(v) { return typeof v === "string" && v.includes("出力期間"); })) { isP = true; break; }
+          if (rows[i][0] && rows[i][1] && rows[i][2] === "月日") { isP = true; break; }
+          if (rows[i][2] === "月日") { isP = true; break; }
+        }
+        if (isP) price = parsePrice(wb); else inv = parseInventory(wb);
+      }
+      if (!inv && !price) { setToast("取り込めるデータが見つかりません"); setImporting(false); return; }
+      if (!inv && price) {
+        // PriceData only: add to the latest snapshot
+        if (cur) {
+          var updatedSnaps = snaps.map(function(s, i) {
+            if (i === selIdx) return Object.assign({}, s, { priceEntries: price.entries });
+            return s;
+          });
+          setSnaps(updatedSnaps); await save(updatedSnaps);
+          setToast("料金データを取り込みました（" + price.entries.length + "プラン）");
+        } else {
+          setToast("先に在庫データ（InventoryData）を取り込んでください");
+        }
+        setImporting(false); e.target.value = ""; return;
+      }
+      var snapDate = new Date().toISOString().split("T")[0];
+      var existingPrices = [];
+      // Check if a snapshot for today already exists - preserve its priceEntries
+      var base = demoMode ? [] : snaps;
+      var existingIdx = -1;
+      base.forEach(function(s, i) {
+        if (s.importDate === snapDate && !s.isLegacy) { existingIdx = i; existingPrices = s.priceEntries || []; }
+      });
+      var snap = { id: Date.now(), importDate: snapDate, period: inv.period, year: inv.year, dates: inv.dates, totRem: inv.totRem, totSold: inv.totSold, rooms: inv.rooms, priceEntries: price ? price.entries : existingPrices };
+      var ns;
+      if (existingIdx >= 0) {
+        ns = base.map(function(s, i) { return i === existingIdx ? snap : s; });
+      } else {
+        ns = base.concat([snap]);
+      }
+      var bestIdx = ns.length - 1;
+      for (var si = ns.length - 1; si >= 0; si--) {
+        if (!ns[si].isLegacy) { bestIdx = si; break; }
+      }
+      setSnaps(ns); setSelIdx(bestIdx); setDemoMode(false); await save(ns);
+      setToast("データを取り込みました" + (price ? "（料金" + price.entries.length + "プラン含む）" : existingPrices.length ? "（既存料金データ保持）" : ""));
+    } catch(err) { setToast("読込失敗: " + err.message); }
+    setImporting(false);
+    e.target.value = "";
+  };
+
+  var handleLegacyImport = async function(e) {
+    var files = Array.from(e.target.files);
+    if (!files.length) return;
+    setImporting(true);
+    try {
+      var allLegacy = [];
+      for (var fi = 0; fi < files.length; fi++) {
+        var ab = await files[fi].arrayBuffer();
+        var wb = XLSX.read(ab, { type: "array" });
+        var parsed = parseLegacyExcel(wb);
+        allLegacy = allLegacy.concat(parsed);
+      }
+      if (allLegacy.length === 0) {
+        setToast("取込可能なシートが見つかりませんでした。\nシート名がYYMMDDまたはYYYYMMDD形式のExcelファイルを選択してください。");
+        setImporting(false);
+        return;
+      }
+      // Merge with existing snaps, avoid duplicates by importDate
+      var existing = demoMode ? [] : snaps;
+      var existingDates = {};
+      existing.forEach(function(s) { existingDates[s.importDate] = true; });
+      var newOnes = allLegacy.filter(function(s) { return !existingDates[s.importDate]; });
+      var merged = existing.concat(newOnes).sort(function(a, b) { return a.importDate < b.importDate ? -1 : 1; });
+      setSnaps(merged);
+      // Select the latest non-legacy (InventoryData) snapshot, or fall back to latest
+      var latestNonLegacy = -1;
+      for (var mi = merged.length - 1; mi >= 0; mi--) {
+        if (!merged[mi].isLegacy) { latestNonLegacy = mi; break; }
+      }
+      setSelIdx(latestNonLegacy >= 0 ? latestNonLegacy : merged.length - 1);
+      setDemoMode(false);
+      await save(merged);
+      setToast(newOnes.length + "件の過去データを取り込みました（全" + allLegacy.length + "シート中）");
+    } catch(err) {
+      setToast("読込失敗: " + err.message);
+    }
+    setImporting(false);
+    e.target.value = "";
+  };
+
+  var cur = selIdx !== null && snaps[selIdx] ? snaps[selIdx] : null;
+  var prevSnaps = useMemo(function() { return cur ? snaps.filter(function(_, i) { return i !== selIdx; }).slice(-5) : []; }, [cur, snaps, selIdx]);
+
+  var toggleRoom = function(n) { setExpanded(function(p) { var s = new Set(p); if (s.has(n)) s.delete(n); else s.add(n); return s; }); };
+  var expandAll = function() { if (cur) setExpanded(new Set(cur.rooms.map(function(r) { return r.name; }))); };
+  var collapseAll = function() { setExpanded(new Set()); };
+
+  var delSnap = async function(i) {
+    var ns = snaps.filter(function(_, j) { return j !== i; });
+    setSnaps(ns);
+    if (selIdx >= ns.length) setSelIdx(Math.max(0, ns.length - 1));
+    await save(ns);
+  };
+
+  var resetAll = async function() {
+    try { await window.storage.delete("inventory-baison"); } catch(e) {}
+    try { await window.storage.set("inventory-baison", JSON.stringify([])); } catch(e) {}
+    setSnaps([]); setSelIdx(null); setDemoMode(false);
+  };
+
+  if (loading) return React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", color: "#9a8e7e" } }, "読み込み中...");
+
+  var content = null;
+  if (!cur) {
+    content = React.createElement(EmptyState, null);
+  } else if (tab === "inventory") {
+    content = React.createElement(InventoryTab, { cur: cur, prevSnaps: prevSnaps, allSnaps: snaps, expanded: expanded, toggle: toggleRoom, expandAll: expandAll, collapseAll: collapseAll });
+  } else if (tab === "rate") {
+    content = React.createElement(RateTab, { cur: cur, prevSnaps: prevSnaps, allSnaps: snaps });
+  } else {
+    content = React.createElement(SummaryTab, { cur: cur, snaps: snaps });
+  }
+
+  return (
+    <div>
+      <style>{CSS}</style>
+      <div className="hdr">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+          <div>
+            <div className="ttl">在庫＆レート ダッシュボード</div>
+            <div className="sub">TLリンカーン データ取込・レベニューマネジメント</div>
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <label className="btn bp" style={{ opacity: importing ? 0.6 : 1 }}>
+              {importing ? "取込中..." : "📁 データ取込"}
+              <input type="file" accept=".xlsx,.xls" multiple onChange={handleImport} style={{ display: "none" }} disabled={importing} />
+            </label>
+            <label className="btn" style={{ background: "#8b6914", color: "#ede8df", opacity: importing ? 0.6 : 1 }}>
+              {importing ? "取込中..." : "📂 過去データ取込"}
+              <input type="file" accept=".xlsx,.xls" multiple onChange={handleLegacyImport} style={{ display: "none" }} disabled={importing} />
+            </label>
+            {snaps.length > 0 && <button className="btn bg2" onClick={function() { window.location.reload(); }} style={{ color: "#2d7a2d", borderColor: "#2d7a2d" }}>🔄 更新</button>}
+            {snaps.length > 0 && <button className="btn bg2" onClick={resetAll}>リセット</button>}
+          </div>
+        </div>
+        {snaps.length > 0 && (
+          <div className="sbar">
+            <span style={{ fontSize: 11, color: "#9a8e7e" }}>取込:</span>
+            {snaps.filter(function(s) { return !s.isLegacy; }).map(function(s, i) {
+              var realIdx = snaps.indexOf(s);
+              return (
+                <span key={s.id} style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
+                  <button className={"sb " + (selIdx === realIdx ? "son" : "sof")} onClick={function() { setSelIdx(realIdx); }}>{s.importDate}</button>
+                  <button onClick={function() { delSnap(realIdx); }} style={{ background: "none", border: "none", color: "#9a8e7e", cursor: "pointer", fontSize: 9, padding: 2, opacity: 0.4 }}>✕</button>
+                </span>
+              );
+            })}
+            {snaps.some(function(s) { return s.isLegacy; }) && (
+              <span style={{ fontSize: 10, color: "#8b6914", marginLeft: 6 }}>📂 過去{snaps.filter(function(s) { return s.isLegacy; }).length}件</span>
+            )}
+          </div>
+        )}
+        {cur && (
+          <div className="tabs">
+            <button className={"tab " + (tab === "inventory" ? "ton" : "tof")} onClick={function() { setTab("inventory"); }}>在庫状況</button>
+            <button className={"tab " + (tab === "rate" ? "ton" : "tof")} onClick={function() { setTab("rate"); }}>レート・料金</button>
+            <button className={"tab " + (tab === "summary" ? "ton" : "tof")} onClick={function() { setTab("summary"); }}>サマリー</button>
+          </div>
+        )}
+      </div>
+      {demoMode && (
+        <div style={{ background: "rgba(139,105,20,0.1)", borderBottom: "1px solid rgba(139,105,20,0.3)", padding: "8px 20px", fontSize: 11, color: "#8b6914", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>📋 デモデータ表示中 — 表示位置の確認用です。実データを取り込むとデモは消えます。</span>
+          <button onClick={function() { setDemoMode(false); setSnaps([]); setSelIdx(null); }} style={{ background: "rgba(139,105,20,0.2)", border: "1px solid rgba(139,105,20,0.4)", color: "#8b6914", borderRadius: 5, padding: "3px 10px", fontSize: 10, cursor: "pointer" }}>デモ終了</button>
+        </div>
+      )}
+      {toast && (
+        <div style={{ background: "rgba(139,105,20,0.15)", borderBottom: "1px solid rgba(139,105,20,0.3)", padding: "10px 20px", fontSize: 12, color: "#8b6914", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>{toast}</span>
+          <button onClick={function() { setToast(""); }} style={{ background: "none", border: "1px solid rgba(139,105,20,0.3)", color: "#8b6914", borderRadius: 5, padding: "3px 10px", fontSize: 10, cursor: "pointer" }}>✕</button>
+        </div>
+      )}
+      <div style={{ padding: "14px 20px" }}>
+        {content}
+      </div>
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "55vh", textAlign: "center", padding: 40 }}>
+      <div style={{ fontSize: 44, marginBottom: 14 }}>📊</div>
+      <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>データを取り込みましょう</h2>
+      <p style={{ fontSize: 13, color: "#9a8e7e", maxWidth: 380, lineHeight: 1.7 }}>TLリンカーンから出力した InventoryData と PriceData を「データ取込」からアップロードしてください。</p>
+      <div className="card" style={{ marginTop: 20, fontSize: 12, color: "#9a8e7e", maxWidth: 340, textAlign: "left" }}>
+        <div style={{ fontWeight: 600, color: "#2c2418", marginBottom: 6 }}>取込手順</div>
+        <div>① InventoryData を出力</div>
+        <div>② PriceData を出力</div>
+        <div>③ 「データ取込」から2ファイルを同時選択</div>
+        <div style={{ marginTop: 8, fontSize: 11, color: "#8b6914" }}>💡 毎週取り込むことで売れ行き変動が把握できます</div>
+      </div>
+    </div>
+  );
+}
+
+function InventoryTab(props) {
+  var cur = props.cur, prevSnaps = props.prevSnaps, allSnaps = props.allSnaps || [], expanded = props.expanded, toggle = props.toggle, expandAll = props.expandAll, collapseAll = props.collapseAll;
+  var dates = cur.dates;
+  var year = cur.year;
+
+  // 3テーブル（最新在庫/週間比較/前年同日）の横スクロール連動
+  var syncRef = useRef(null);
+  useEffect(function syncScroll() {
+    var root = syncRef.current;
+    if (!root) return;
+    var conts = Array.prototype.slice.call(root.querySelectorAll('[data-sync="inv"]'));
+    if (conts.length < 2) return;
+    var lock = false; // 無限ループ防止フラグ
+    function onScroll(e) {
+      if (lock) return;
+      lock = true;
+      var sl = e.target.scrollLeft;
+      conts.forEach(function(c) { if (c !== e.target) c.scrollLeft = sl; });
+      // プログラム的scroll由来のイベントが捌けた次フレームでフラグ解除
+      requestAnimationFrame(function() { lock = false; });
+    }
+    conts.forEach(function(c) { c.addEventListener("scroll", onScroll); });
+    return function cleanup() {
+      conts.forEach(function(c) { c.removeEventListener("scroll", onScroll); });
+    };
+  });
+  var currentYearSnaps = prevSnaps.filter(function(s) { return s.year === cur.year; });
+  var lastPrev = currentYearSnaps.length > 0 ? currentYearSnaps[currentYearSnaps.length - 1] : null;
+
+  // Find best YoY snapshot: look for previous year data with import date within ±10 days of 52 weeks ago from current import date
+  var yoySnap = null;
+  (function findYoY() {
+    var curImport = new Date(cur.importDate);
+    var target52w = new Date(curImport.getTime() - 52 * 7 * 24 * 60 * 60 * 1000);
+    var allPast = allSnaps.filter(function(s) { return s.year === cur.year - 1 || (s.isLegacy && s.importDate < cur.importDate); });
+    if (allPast.length === 0) return;
+    var bestSnap = null;
+    var bestDist = Infinity;
+    allPast.forEach(function(s) {
+      var sDate = new Date(s.importDate);
+      var daysDist = Math.abs(sDate.getTime() - target52w.getTime()) / (24 * 60 * 60 * 1000);
+      if (daysDist <= 10 && daysDist < bestDist) {
+        bestDist = daysDist;
+        bestSnap = s;
+      }
+    });
+    yoySnap = bestSnap;
+  })();
+
+  function getYoyDate(dateStr) {
+    var pd = parseMMDD(dateStr, year);
+    if (!pd) return null;
+    var d = new Date(pd.year, pd.month - 1, pd.day);
+    var prev = new Date(d.getTime() - 52 * 7 * 24 * 60 * 60 * 1000);
+    var mm = String(prev.getMonth() + 1).padStart(2, "0");
+    var dd = String(prev.getDate()).padStart(2, "0");
+    return mm + "/" + dd;
+  }
+
+  function dateHeaderCells(bgColor) {
+    return dates.map(function(d) {
+      var pd = parseMMDD(d, year);
+      var dow = pd ? getDow(pd.year, pd.month, pd.day) : "";
+      var we = pd ? isWe(pd.year, pd.month, pd.day) : false;
+      return (
+        <th key={d} style={{ textAlign: "center", minWidth: 46, padding: "5px 6px", borderBottom: "1px solid rgba(44,36,24,0.12)", background: we ? "rgba(192,48,48,0.04)" : (bgColor || "#f5f1ea"), color: dow === "日" ? "#c03030" : dow === "土" ? "#8b6914" : "#2c2418" }}>
+          <div>{d}</div>
+          <div style={{ fontSize: 9, opacity: 0.5 }}>{dow}</div>
+        </th>
+      );
+    });
+  }
+
+  // === BLOCK 1: Latest Inventory ===
+  var latestRoomRows = [];
+  cur.rooms.forEach(function(room) {
+    var hasData = Object.values(room.rem).some(function(v) { return v !== 0 && v !== "止"; }) || Object.values(room.sold).some(function(v) { return v !== 0; });
+    if (!hasData) return;
+    var isExp = expanded.has(room.name);
+    latestRoomRows.push(
+      <tr key={room.name} onClick={function() { toggle(room.name); }} style={{ cursor: "pointer" }}>
+        <td style={stickyTd({ fontSize: 10, fontWeight: 600 })}>
+          <span style={{ fontSize: 8, marginRight: 4, color: "#9a8e7e" }}>{isExp ? "▼" : "▶"}</span>
+          {room.name}
+        </td>
+        {dates.map(function(d) {
+          var rem = room.rem[d];
+          var sold = room.sold[d];
+          var rate = occRate(sold, typeof rem === "number" ? rem : 0);
+          if (rem === "止") return <td key={d} style={cellTd({ background: occBg(rate) })}><span style={{ color: "#c03030", fontWeight: 700, fontSize: 9 }}>止</span></td>;
+          return <td key={d} style={cellTd({ background: occBg(rate) })}><span style={{ color: occColor(rate), fontWeight: 600 }}>{rem}</span></td>;
+        })}
+      </tr>
+    );
+    if (isExp) {
+      latestRoomRows.push(
+        <tr key={room.name + "-sold"}>
+          <td style={stickyTd({ paddingLeft: 18, fontSize: 10, color: "#8b6914", background: "#f0ebe2" })}>└ 販売</td>
+          {dates.map(function(d) { return <td key={d} style={cellTd({ fontSize: 10, color: "#8b6914" })}>{room.sold[d] || 0}</td>; })}
+        </tr>
+      );
+    }
+  });
+
+  var block1 = (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <div style={{ width: 4, height: 18, borderRadius: 2, background: "#8b6914" }} />
+        <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0 }}>最新在庫状況</h3>
+        <span style={{ fontSize: 10, color: "#9a8e7e" }}>({cur.importDate} 取込)</span>
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
+        <div style={{ display: "flex", gap: 10, fontSize: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <span><span style={{ width: 7, height: 7, borderRadius: "50%", background: "#c03030", display: "inline-block", marginRight: 3 }} />90%↑</span>
+          <span><span style={{ width: 7, height: 7, borderRadius: "50%", background: "#b07828", display: "inline-block", marginRight: 3 }} />70-89%</span>
+          <span><span style={{ width: 7, height: 7, borderRadius: "50%", background: "#2d7a2d", display: "inline-block", marginRight: 3 }} />50-69%</span>
+          <span><span style={{ width: 7, height: 7, borderRadius: "50%", background: "#9a8e7e", display: "inline-block", marginRight: 3 }} />50%↓</span>
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button className="btn bg2 bs" onClick={expandAll}>全展開</button>
+          <button className="btn bg2 bs" onClick={collapseAll}>全折畿</button>
+        </div>
+      </div>
+      <div className="tw" data-sync="inv">
+        <table style={{ minWidth: dates.length * 50 + 200 }}>
+          <thead><tr style={{ background: "#f5f1ea" }}>
+            <th style={{ position: "sticky", left: 0, zIndex: 10, background: "#f5f1ea", borderRight: "2px solid rgba(44,36,24,0.12)", minWidth: 180, fontSize: 10, textAlign: "left", padding: "5px 8px", borderBottom: "1px solid rgba(44,36,24,0.12)" }}>{cur.period ? cur.period.replace("指定期間 ", "") : ""}</th>
+            {dateHeaderCells()}
+          </tr></thead>
+          <tbody>
+            <tr><td style={stickyTd({ fontSize: 11, fontWeight: 700 })}>総残室数</td>
+              {dates.map(function(d) { return <td key={d} style={cellTd({ fontWeight: 600 })}>{cur.totRem[d] !== undefined ? cur.totRem[d] : "-"}</td>; })}</tr>
+            <tr><td style={stickyTd({ fontSize: 11, fontWeight: 700, color: "#8b6914" })}>総販売数</td>
+              {dates.map(function(d) { return <td key={d} style={cellTd({ fontWeight: 700, color: "#8b6914" })}>{cur.totSold[d] !== undefined ? cur.totSold[d] : "-"}</td>; })}</tr>
+            <tr style={{ borderBottom: "2px solid rgba(44,36,24,0.12)", background: "rgba(139,105,20,0.05)" }}>
+              <td style={stickyTd({ fontSize: 11, fontWeight: 700 })}>稼働率</td>
+              {dates.map(function(d) { var rate = occRate(cur.totSold[d], cur.totRem[d]); return <td key={d} style={cellTd({ fontWeight: 700, color: occColor(rate), background: occBg(rate) })}>{rate !== null ? rate + "%" : "-"}</td>; })}
+            </tr>
+            {latestRoomRows}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  // === BLOCK 2: Weekly Comparison ===
+  var block2 = null;
+  if (lastPrev) {
+    var weeklyRoomRows = [];
+    cur.rooms.forEach(function(room) {
+      var hasData = Object.values(room.rem).some(function(v) { return v !== 0 && v !== "止"; }) || Object.values(room.sold).some(function(v) { return v !== 0; });
+      if (!hasData) return;
+      var prevRoom = (lastPrev.rooms || []).find(function(r) { return roomMatch(r.name, room.name); });
+      if (!prevRoom) return;
+      weeklyRoomRows.push(
+        <tr key={room.name + "-wk"}>
+          <td style={stickyTd({ fontSize: 10, fontWeight: 500, color: "#2c2418", background: "#f5f1ea" })}>{room.name}</td>
+          {dates.map(function(d) {
+            var diff = (room.sold[d] || 0) - (prevRoom.sold[d] || 0);
+            return <td key={d} style={cellTd({ fontSize: 10, fontWeight: 600, color: diff > 0 ? "#2d7a2d" : diff < 0 ? "#c03030" : "#c9c0b3" })}>{diff > 0 ? "+" + diff : diff === 0 ? "·" : String(diff)}</td>;
+          })}
+        </tr>
+      );
+    });
+    block2 = (
+      <div style={{ marginTop: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <div style={{ width: 4, height: 18, borderRadius: 2, background: "#8b6914" }} />
+          <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "#b07828" }}>週間比較</h3>
+          <span style={{ fontSize: 10, color: "#9a8e7e" }}>({lastPrev.importDate} → {cur.importDate} 販売増減)</span>
+        </div>
+        <div className="tw" data-sync="inv">
+          <table style={{ minWidth: dates.length * 50 + 200 }}>
+            <thead><tr style={{ background: "rgba(139,105,20,0.06)" }}>
+              <th style={{ position: "sticky", left: 0, zIndex: 10, background: "#ede8df", borderRight: "2px solid rgba(44,36,24,0.12)", minWidth: 180, fontSize: 10, textAlign: "left", padding: "5px 8px", borderBottom: "1px solid rgba(44,36,24,0.12)", color: "#b07828" }}>週間比較（販売増減）</th>
+              {dateHeaderCells("rgba(139,105,20,0.04)")}
+            </tr></thead>
+            <tbody>
+              <tr style={{ background: "rgba(139,105,20,0.03)" }}>
+                <td style={stickyTd({ fontSize: 10, fontWeight: 600, color: "#9a8e7e", background: "#ede8df" })}>前回 残室({lastPrev.importDate})</td>
+                {dates.map(function(d) { return <td key={d} style={cellTd({ color: "#9a8e7e", fontSize: 10 })}>{lastPrev.totRem[d] !== undefined ? lastPrev.totRem[d] : "-"}</td>; })}
+              </tr>
+              <tr style={{ background: "rgba(139,105,20,0.03)" }}>
+                <td style={stickyTd({ fontSize: 10, fontWeight: 600, color: "#9a8e7e", background: "#ede8df" })}>前回 販売</td>
+                {dates.map(function(d) { return <td key={d} style={cellTd({ color: "#9a8e7e", fontSize: 10 })}>{lastPrev.totSold[d] !== undefined ? lastPrev.totSold[d] : "-"}</td>; })}
+              </tr>
+              <tr style={{ borderBottom: "2px solid rgba(44,36,24,0.12)" }}>
+                <td style={stickyTd({ fontSize: 11, fontWeight: 700, color: "#2d7a2d", background: "#f5f1ea" })}>総販売 週間増減</td>
+                {dates.map(function(d) {
+                  var diff = (cur.totSold[d] || 0) - (lastPrev.totSold[d] || 0);
+                  return <td key={d} style={cellTd({ fontWeight: 700, fontSize: 11, color: diff > 0 ? "#2d7a2d" : diff < 0 ? "#c03030" : "#9a8e7e" })}>{diff > 0 ? "+" + diff : diff === 0 ? "-" : String(diff)}</td>;
+                })}
+              </tr>
+              {weeklyRoomRows}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  // === BLOCK 3: YoY (day-of-week matched) ===
+  var block3 = null;
+  if (!yoySnap) {
+    block3 = (
+      <div style={{ marginTop: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <div style={{ width: 4, height: 18, borderRadius: 2, background: "#8b6914" }} />
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: "#8b6914", margin: 0 }}>前年同日対比</h3>
+        </div>
+        <div style={{ padding: "16px 14px", borderRadius: 8, border: "1px dashed #c9c0b3", color: "#9a8e7e", fontSize: 12 }}>前年対比　データなし（±10日以内の前年スナップショットが見つかりません）</div>
+      </div>
+    );
+  } else {
+    var yoyRoomRows = [];
+    console.log("YoY snap: " + yoySnap.importDate + " rooms=" + (yoySnap.rooms || []).length + " prices=" + (yoySnap.priceEntries || []).length + " names=" + (yoySnap.rooms || []).map(function(r){return r.name;}).join("|"));
+    cur.rooms.forEach(function(room) {
+      var hasData = Object.values(room.rem).some(function(v) { return v !== 0 && v !== "止"; }) || Object.values(room.sold).some(function(v) { return v !== 0; });
+      if (!hasData) return;
+      var yoyRoom = (yoySnap.rooms || []).find(function(r) { return roomMatch(r.name, room.name); });
+      if (!yoyRoom) return;
+      yoyRoomRows.push(
+        <tr key={room.name + "-yoy"}>
+          <td style={stickyTd({ fontSize: 10, fontWeight: 500, color: "#8b6914", background: "#f0ebe2" })}>{room.name}</td>
+          {dates.map(function(d) {
+            var yoyD = getYoyDate(d);
+            var curSold = room.sold[d] || 0;
+            var yoySold = yoyD && yoyRoom.sold[yoyD] ? yoyRoom.sold[yoyD] : 0;
+            var diff = curSold - yoySold;
+            return <td key={d} style={cellTd({ fontSize: 10, color: diff > 0 ? "#2d7a2d" : diff < 0 ? "#c03030" : "#9a8e7e" })}>{diff > 0 ? "+" + diff : diff === 0 ? "·" : String(diff)}</td>;
+          })}
+        </tr>
+      );
+    });
+    block3 = (
+      <div style={{ marginTop: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <div style={{ width: 4, height: 18, borderRadius: 2, background: "#8b6914" }} />
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: "#8b6914", margin: 0 }}>前年同日対比</h3>
+          <span style={{ fontSize: 10, color: "#9a8e7e" }}>({yoySnap.importDate} 取込 / 曜日合わせ: 52週前)</span>
+        </div>
+        <div className="tw" data-sync="inv">
+          <table style={{ minWidth: dates.length * 50 + 200 }}>
+            <thead><tr style={{ background: "rgba(139,105,20,0.06)" }}>
+              <th style={{ position: "sticky", left: 0, zIndex: 10, background: "#f0ebe2", borderRight: "2px solid rgba(44,36,24,0.12)", minWidth: 180, fontSize: 10, textAlign: "left", padding: "5px 8px", borderBottom: "1px solid rgba(44,36,24,0.12)", color: "#8b6914" }}>前年対比（曜日合わせ）</th>
+              {dates.map(function(d) {
+                var yoyD = getYoyDate(d);
+                var pd = parseMMDD(d, year);
+                var dow = pd ? getDow(pd.year, pd.month, pd.day) : "";
+                var we = pd ? isWe(pd.year, pd.month, pd.day) : false;
+                var dowColor = dow === "日" ? "#c03030" : dow === "土" ? "#8b6914" : "#8b6914";
+                return <th key={d} style={{ textAlign: "center", minWidth: 46, padding: "5px 6px", borderBottom: "1px solid rgba(44,36,24,0.12)", background: we ? "rgba(192,48,48,0.04)" : "rgba(139,105,20,0.04)" }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: dowColor }}>{yoyD || "?"}</div>
+                  <div style={{ fontSize: 9, opacity: 0.5, color: dowColor }}>{dow}</div>
+                </th>;
+              })}
+            </tr></thead>
+            <tbody>
+              <tr style={{ background: "rgba(139,105,20,0.04)" }}>
+                <td style={stickyTd({ fontSize: 10, fontWeight: 600, color: "#8b6914", background: "#f0ebe2" })}>前年 残室</td>
+                {dates.map(function(d) { var yoyD = getYoyDate(d); return <td key={d} style={cellTd({ color: "#8b6914", opacity: 0.7, fontSize: 10 })}>{yoyD && yoySnap.totRem[yoyD] !== undefined ? yoySnap.totRem[yoyD] : "-"}</td>; })}
+              </tr>
+              <tr style={{ background: "rgba(139,105,20,0.04)" }}>
+                <td style={stickyTd({ fontSize: 10, fontWeight: 600, color: "#8b6914", background: "#f0ebe2" })}>前年 販売</td>
+                {dates.map(function(d) { var yoyD = getYoyDate(d); return <td key={d} style={cellTd({ color: "#8b6914", opacity: 0.7, fontSize: 10 })}>{yoyD && yoySnap.totSold[yoyD] !== undefined ? yoySnap.totSold[yoyD] : "-"}</td>; })}
+              </tr>
+              <tr style={{ borderBottom: "2px solid rgba(44,36,24,0.12)", background: "rgba(139,105,20,0.04)" }}>
+                <td style={stickyTd({ fontSize: 10, fontWeight: 700, color: "#8b6914", background: "#f0ebe2" })}>総販売 前年差</td>
+                {dates.map(function(d) {
+                  var yoyD = getYoyDate(d);
+                  var curV = cur.totSold[d] || 0;
+                  var yoyV = yoyD && yoySnap.totSold[yoyD] ? yoySnap.totSold[yoyD] : 0;
+                  var diff = curV - yoyV;
+                  return <td key={d} style={cellTd({ fontWeight: 700, fontSize: 10, color: diff > 0 ? "#2d7a2d" : diff < 0 ? "#c03030" : "#9a8e7e" })}>{diff > 0 ? "+" + diff : diff === 0 ? "-" : String(diff)}</td>;
+                })}
+              </tr>
+              {yoyRoomRows}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  return (<div ref={syncRef}>{block1}{block2}{block3}</div>);
+}
+
+function RateTab(props) {
+  var cur = props.cur, prevSnaps = props.prevSnaps, allSnaps = props.allSnaps || [];
+  var entries = cur.priceEntries || [];
+  if (!entries.length) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "40vh" }}>
+        <div style={{ fontSize: 36, marginBottom: 10 }}>💰</div>
+        <p style={{ color: "#9a8e7e" }}>料金データがありません。PriceDataも一緒に取り込んでください。</p>
+      </div>
+    );
+  }
+  var year = cur.year;
+  var currentYearSnaps = prevSnaps.filter(function(s) { return s.year === cur.year; });
+  var lastPrev = currentYearSnaps.length > 0 ? currentYearSnaps[currentYearSnaps.length - 1] : null;
+  var prevPrice = lastPrev ? (lastPrev.priceEntries || []) : [];
+
+  // Find YoY snap (same logic as InventoryTab: ±10日以内で最も近いもののみ)
+  var yoySnap = null;
+  (function() {
+    var curImport = new Date(cur.importDate);
+    var target52w = new Date(curImport.getTime() - 52 * 7 * 24 * 60 * 60 * 1000);
+    console.log("RateTab YoY search: curYear=" + cur.year + " curImport=" + cur.importDate + " target52w=" + target52w.toISOString().split("T")[0] + " allSnaps=" + allSnaps.length);
+    var allPast = allSnaps.filter(function(s) { return s.year === cur.year - 1 || (s.isLegacy && s.importDate < cur.importDate); });
+    console.log("RateTab YoY allPast=" + allPast.length + " details=" + allPast.map(function(s){return s.importDate+"(y"+s.year+",leg="+!!s.isLegacy+",pr="+( s.priceEntries||[]).length+")";}).join("|"));
+    if (!allPast.length) return;
+    var bestSnap = null, bestDist = Infinity;
+    allPast.forEach(function(s) {
+      var dist = Math.abs(new Date(s.importDate).getTime() - target52w.getTime()) / 86400000;
+      if (dist <= 10 && dist < bestDist) { bestDist = dist; bestSnap = s; }
+    });
+    yoySnap = bestSnap;
+  })();
+  var yoyPrice = yoySnap ? (yoySnap.priceEntries || []) : [];
+  console.log("RateTab YoY: snap=" + (yoySnap ? yoySnap.importDate : "none") + " yoyPrice=" + yoyPrice.length + (yoyPrice.length > 0 ? " rooms=" + yoyPrice.map(function(e){return e.roomType;}).join("|") : ""));
+
+  function getYoyDate(dateStr) {
+    var pd = parseMMDD(dateStr, year);
+    if (!pd) return null;
+    var d = new Date(pd.year, pd.month - 1, pd.day);
+    var prev = new Date(d.getTime() - 52 * 7 * 24 * 60 * 60 * 1000);
+    return String(prev.getMonth() + 1).padStart(2, "0") + "/" + String(prev.getDate()).padStart(2, "0");
+  }
+
+  function dateHeaderCells(dates, bgColor) {
+    return dates.map(function(d) {
+      var pd = parseMMDD(d, year);
+      var dow = pd ? getDow(pd.year, pd.month, pd.day) : "";
+      var we = pd ? isWe(pd.year, pd.month, pd.day) : false;
+      return (
+        <th key={d} style={{ textAlign: "center", minWidth: 46, padding: "5px 6px", borderBottom: "1px solid rgba(44,36,24,0.12)", background: we ? "rgba(192,48,48,0.04)" : (bgColor || "#f5f1ea"), color: dow === "日" ? "#c03030" : dow === "土" ? "#8b6914" : "#2c2418" }}>
+          <div>{d}</div>
+          <div style={{ fontSize: 9, opacity: 0.5 }}>{dow}</div>
+        </th>
+      );
+    });
+  }
+
+  // ═══ BLOCK 1: Latest Rates ═══
+  var block1 = (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <div style={{ width: 4, height: 18, borderRadius: 2, background: "#8b6914" }} />
+        <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0 }}>最新レート・料金</h3>
+        <span style={{ fontSize: 10, color: "#9a8e7e" }}>({cur.importDate} 取込)</span>
+      </div>
+      {entries.map(function(entry, idx) {
+        var dates = entry.dates || [];
+        var entryPrices = entry.prices || {};
+        var entryStatus = entry.status || {};
+        var entryRank = entry.rank || {};
+        var entrySold = entry.soldRooms || entry.sold || {};
+        var priceRows = [];
+        Object.keys(entryPrices).forEach(function(p) {
+          var pd = entryPrices[p] || {};
+          var hasVal = Object.values(pd).some(function(v) { return v > 0; });
+          if (!hasVal) return;
+          priceRows.push(
+            <tr key={p}>
+              <td style={stickyTd({ fontWeight: 600, fontSize: 10 })}>{p}料金</td>
+              {dates.map(function(d) { return <td key={d} style={cellTd({ textAlign: "right", paddingRight: 8, fontSize: 10 })}>{pd[d] ? "¥" + pd[d].toLocaleString() : "-"}</td>; })}
+            </tr>
+          );
+        });
+        return (
+          <div key={idx} style={{ marginBottom: 16, borderRadius: 10, border: "1px solid rgba(44,36,24,0.12)", overflow: "hidden" }}>
+            <div style={{ padding: "8px 14px", background: "#f5f1ea", borderBottom: "1px solid rgba(44,36,24,0.12)" }}>
+              <span style={{ fontWeight: 700, fontSize: 12 }}>{entry.roomType}</span>
+              <span style={{ color: "#9a8e7e", fontSize: 10, marginLeft: 8 }}>{entry.plan}</span>
+            </div>
+            <div className="tw" style={{ border: "none", borderRadius: 0 }}>
+              <table style={{ minWidth: dates.length * 50 + 140 }}>
+                <thead><tr style={{ background: "#f5f1ea" }}>
+                  <th style={{ position: "sticky", left: 0, zIndex: 10, background: "#f5f1ea", borderRight: "2px solid rgba(44,36,24,0.12)", minWidth: 120, padding: "5px 8px", borderBottom: "1px solid rgba(44,36,24,0.12)" }}></th>
+                  {dateHeaderCells(dates)}
+                </tr></thead>
+                <tbody>
+                  <tr>
+                    <td style={stickyTd({ fontWeight: 600, fontSize: 10 })}>状態</td>
+                    {dates.map(function(d) { return <td key={d} style={cellTd({ color: entryStatus[d] === "止" ? "#c03030" : "#2d7a2d", fontWeight: 700, fontSize: 10 })}>{entryStatus[d] || "-"}</td>; })}
+                  </tr>
+                  <tr>
+                    <td style={stickyTd({ fontWeight: 600, fontSize: 10 })}>ランク</td>
+                    {dates.map(function(d) { return <td key={d} style={cellTd({ fontWeight: 700, fontSize: 10, color: rankColor(entryRank[d]) })}>{entryRank[d] || "-"}</td>; })}
+                  </tr>
+                  <tr>
+                    <td style={stickyTd({ fontWeight: 600, fontSize: 10 })}>販売室数</td>
+                    {dates.map(function(d) { return <td key={d} style={cellTd({ color: "#8b6914", fontSize: 10 })}>{entrySold[d] !== undefined ? entrySold[d] : "-"}</td>; })}
+                  </tr>
+                  {priceRows}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  // ═══ BLOCK 2: Weekly Rank Comparison (compact) ═══
+  var block2 = null;
+  if (lastPrev && prevPrice.length > 0) {
+    var rankRows = [];
+    entries.forEach(function(entry) {
+      var prevEntry = prevPrice.find(function(e) { return roomMatch(e.roomType, entry.roomType) && planMatch(e.plan, entry.plan); });
+      if (!prevEntry) return;
+      var dates = entry.dates || [];
+      var entryRank = entry.rank || {};
+      var hasChange = dates.some(function(d) {
+        var curr = entryRank[d] || "";
+        var prev = prevEntry.rank ? (prevEntry.rank[d] || "") : "";
+        return curr && prev && curr !== prev;
+      });
+      rankRows.push(
+        <tr key={entry.roomType + "-" + entry.plan}>
+          <td style={stickyTd({ fontSize: 9, fontWeight: 500, color: hasChange ? "#2c2418" : "#9a8e7e" })}>{entry.roomType}<br /><span style={{ fontSize: 8, color: "#9a8e7e" }}>{(entry.plan || "").substring(0, 20)}</span></td>
+          {dates.map(function(d) {
+            var curr = entryRank[d] || "";
+            var prev = prevEntry.rank ? (prevEntry.rank[d] || "") : "";
+            var changed = curr && prev && curr !== prev;
+            if (!changed) return <td key={d} style={cellTd({ fontSize: 9, color: "#c9c0b3" })}>·</td>;
+            return <td key={d} style={cellTd({ fontSize: 9, fontWeight: 700, background: "rgba(176,120,40,0.1)" })}>
+              <div style={{ color: "#9a8e7e" }}>{prev}</div>
+              <div style={{ color: "#b07828" }}>→{curr}</div>
+            </td>;
+          })}
+        </tr>
+      );
+    });
+    if (rankRows.length > 0) {
+      var sampleDates = entries[0] ? (entries[0].dates || []) : [];
+      block2 = (
+        <div style={{ marginTop: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <div style={{ width: 4, height: 18, borderRadius: 2, background: "#8b6914" }} />
+            <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "#b07828" }}>週間ランク変動</h3>
+            <span style={{ fontSize: 10, color: "#9a8e7e" }}>({lastPrev.importDate} → {cur.importDate})</span>
+          </div>
+          <div className="tw">
+            <table style={{ minWidth: sampleDates.length * 50 + 200 }}>
+              <thead><tr style={{ background: "rgba(139,105,20,0.06)" }}>
+                <th style={{ position: "sticky", left: 0, zIndex: 10, background: "#ede8df", borderRight: "2px solid rgba(44,36,24,0.12)", minWidth: 180, fontSize: 10, textAlign: "left", padding: "5px 8px", borderBottom: "1px solid rgba(44,36,24,0.12)", color: "#b07828" }}>ランク変動</th>
+                {dateHeaderCells(sampleDates, "rgba(139,105,20,0.04)")}
+              </tr></thead>
+              <tbody>{rankRows}</tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+  }
+
+  // ═══ BLOCK 3: YoY Price Comparison ═══
+  var block3 = null;
+  if (!yoySnap) {
+    block3 = (
+      <div style={{ marginTop: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <div style={{ width: 4, height: 18, borderRadius: 2, background: "#8b6914" }} />
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: "#8b6914", margin: 0 }}>前年同日 料金対比</h3>
+        </div>
+        <div style={{ padding: "16px 14px", borderRadius: 8, border: "1px dashed #c9c0b3", color: "#9a8e7e", fontSize: 12 }}>前年対比　データなし（±10日以内の前年スナップショットが見つかりません）</div>
+      </div>
+    );
+  } else if (yoySnap && yoyPrice.length > 0) {
+    var yoyEntryRows = [];
+    entries.forEach(function(entry) {
+      var yoyEntry = yoyPrice.find(function(e) { return roomMatch(e.roomType, entry.roomType) && planMatch(e.plan, entry.plan); });
+      if (!yoyEntry) return;
+      var dates = entry.dates || [];
+      var entryRank = entry.rank || {};
+      var entryPrices = entry.prices || {};
+
+      // Rank comparison row
+      yoyEntryRows.push(
+        <tr key={entry.roomType + "-" + entry.plan + "-hdr"} style={{ background: "rgba(139,105,20,0.06)" }}>
+          <td style={stickyTd({ fontSize: 10, fontWeight: 700, color: "#8b6914", background: "#f0ebe2" })}>{entry.roomType}<br /><span style={{ fontSize: 8, color: "#b07828" }}>{(entry.plan || "").substring(0, 25)}</span></td>
+          <td style={cellTd({ fontSize: 9, fontWeight: 600, color: "#8b6914" })}>ランク</td>
+          {dates.map(function(d) {
+            var yoyD = getYoyDate(d);
+            var curr = entryRank[d] || "";
+            var prev = yoyD && yoyEntry.rank ? (yoyEntry.rank[yoyD] || "") : "";
+            var changed = curr && prev && curr !== prev;
+            return <td key={d} style={cellTd({ fontSize: 9, color: changed ? "#b07828" : "#9a8e7e" })}>
+              {prev ? (changed ? prev + "→" + curr : curr) : curr || "-"}
+            </td>;
+          })}
+        </tr>
+      );
+
+      // Price comparison rows per person count
+      Object.keys(entryPrices).forEach(function(persons) {
+        var curPrices = entryPrices[persons] || {};
+        var hasVal = Object.values(curPrices).some(function(v) { return v > 0; });
+        if (!hasVal) return;
+        var yoyPrices = yoyEntry.prices ? (yoyEntry.prices[persons] || {}) : {};
+        yoyEntryRows.push(
+          <tr key={entry.roomType + "-" + entry.plan + "-" + persons}>
+            <td style={stickyTd({ fontSize: 9, color: "#b07828", paddingLeft: 12, background: "#f5f1ea" })}></td>
+            <td style={cellTd({ fontSize: 9, color: "#8b6914" })}>{persons}差額</td>
+            {dates.map(function(d) {
+              var yoyD = getYoyDate(d);
+              var curP = curPrices[d] || 0;
+              var yoyP = yoyD ? (yoyPrices[yoyD] || 0) : 0;
+              if (!curP || !yoyP) return <td key={d} style={cellTd({ fontSize: 9, color: "#c9c0b3" })}>-</td>;
+              var diff = curP - yoyP;
+              var color = diff > 0 ? "#2d7a2d" : diff < 0 ? "#c03030" : "#9a8e7e";
+              var text = diff > 0 ? "+" + diff.toLocaleString() : diff < 0 ? diff.toLocaleString() : "·";
+              return <td key={d} style={cellTd({ fontSize: 9, fontWeight: diff !== 0 ? 600 : 400, color: color })}>{text}</td>;
+            })}
+          </tr>
+        );
+      });
+    });
+
+    if (yoyEntryRows.length > 0) {
+      var sampleDates2 = entries[0] ? entries[0].dates : [];
+      block3 = (
+        <div style={{ marginTop: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <div style={{ width: 4, height: 18, borderRadius: 2, background: "#8b6914" }} />
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: "#8b6914", margin: 0 }}>前年同日 料金対比</h3>
+            <span style={{ fontSize: 10, color: "#9a8e7e" }}>({yoySnap.importDate} 取込 / 曜日合わせ: 52週前)</span>
+          </div>
+          <div className="tw">
+            <table style={{ minWidth: sampleDates2.length * 50 + 220 }}>
+              <thead><tr style={{ background: "rgba(139,105,20,0.06)" }}>
+                <th style={{ position: "sticky", left: 0, zIndex: 10, background: "#f0ebe2", borderRight: "2px solid rgba(44,36,24,0.12)", minWidth: 180, fontSize: 10, textAlign: "left", padding: "5px 8px", borderBottom: "1px solid rgba(44,36,24,0.12)", color: "#8b6914" }}>前年料金対比</th>
+                <th style={{ minWidth: 50, fontSize: 9, color: "#8b6914", padding: "5px 4px", borderBottom: "1px solid rgba(44,36,24,0.12)", background: "rgba(139,105,20,0.04)" }}></th>
+                {sampleDates2.map(function(d) {
+                  var yoyD = getYoyDate(d);
+                  var pd = parseMMDD(d, year);
+                  var dow = pd ? getDow(pd.year, pd.month, pd.day) : "";
+                  var dowColor = dow === "日" ? "#c03030" : dow === "土" ? "#8b6914" : "#8b6914";
+                  return <th key={d} style={{ textAlign: "center", minWidth: 46, padding: "5px 6px", borderBottom: "1px solid rgba(44,36,24,0.12)", background: "rgba(139,105,20,0.04)" }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: dowColor }}>{yoyD || "?"}</div>
+                    <div style={{ fontSize: 9, opacity: 0.5, color: dowColor }}>{dow}</div>
+                  </th>;
+                })}
+              </tr></thead>
+              <tbody>{yoyEntryRows}</tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+  }
+
+  return (<div>{block1}{block2}{block3}</div>);
+}
+
+function SummaryTab(props) {
+  var cur = props.cur, snaps = props.snaps;
+  var dates = cur.dates;
+  var year = cur.year;
+  var monthGroups = {};
+  dates.forEach(function(d) { var pd = parseMMDD(d, year); if (!pd) return; var mk = pd.month + "月"; if (!monthGroups[mk]) monthGroups[mk] = []; monthGroups[mk].push(d); });
+  var monthStats = Object.entries(monthGroups).map(function(pair) { var m = pair[0], ds = pair[1]; var sold = 0, rem = 0; ds.forEach(function(d) { sold += cur.totSold[d] || 0; rem += cur.totRem[d] || 0; }); return { month: m, days: ds.length, sold: sold, rem: rem, occ: occRate(sold, rem) || 0 }; });
+  var roomRank = cur.rooms.filter(function(r) { return Object.values(r.rem).some(function(v) { return v !== 0 && v !== "止"; }) || Object.values(r.sold).some(function(v) { return v !== 0; }); }).map(function(r) { var sold = 0, rem = 0; dates.forEach(function(d) { if (typeof r.rem[d] === "number") rem += r.rem[d]; sold += r.sold[d] || 0; }); return { name: r.name, occ: occRate(sold, rem) || 0 }; }).sort(function(a, b) { return b.occ - a.occ; });
+  var rateUp = dates.filter(function(d) { var r = occRate(cur.totSold[d], cur.totRem[d]); return r !== null && r >= 85; });
+  var rateDown = dates.filter(function(d) { var r = occRate(cur.totSold[d], cur.totRem[d]); return r !== null && r < 40 && r > 0; });
+
+  return (
+    <div className="grid">
+      <div className="card">
+        <h3 style={{ fontSize: 13, fontWeight: 700, marginBottom: 14 }}>月別稼働率</h3>
+        {monthStats.map(function(ms) {
+          return (
+            <div key={ms.month} style={{ marginBottom: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                <span style={{ fontWeight: 600, fontSize: 12 }}>{ms.month}</span>
+                <span style={{ color: occColor(ms.occ), fontWeight: 700 }}>{ms.occ}%</span>
+              </div>
+              <div className="bt"><div className="bf" style={{ width: ms.occ + "%", background: occColor(ms.occ) }} /></div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#9a8e7e", marginTop: 3 }}>
+                <span>販売: {ms.sold.toLocaleString()}室</span><span>残室: {ms.rem.toLocaleString()}室</span><span>{ms.days}日</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="card">
+        <h3 style={{ fontSize: 13, fontWeight: 700, marginBottom: 14 }}>部屋タイプ別稼働率</h3>
+        {roomRank.map(function(r, i) {
+          return (
+            <div key={r.name} style={{ marginBottom: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                <span style={{ fontSize: 10, maxWidth: "65%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i + 1}. {r.name}</span>
+                <span style={{ color: occColor(r.occ), fontWeight: 700, fontSize: 12 }}>{r.occ}%</span>
+              </div>
+              <div className="bt" style={{ height: 5 }}><div className="bf" style={{ width: r.occ + "%", background: occColor(r.occ) }} /></div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="card">
+        <h3 style={{ fontSize: 13, fontWeight: 700, marginBottom: 14 }}>💡 レート調整アクション</h3>
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 6, color: "#c03030" }}>🔺 レートアップ検討（稼働85%↑）</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+            {rateUp.length > 0 ? rateUp.slice(0, 15).map(function(d) { return <span key={d} style={{ padding: "2px 7px", borderRadius: 4, background: "rgba(192,48,48,0.12)", color: "#c03030", fontSize: 10 }}>{d}</span>; }) : <span style={{ color: "#9a8e7e", fontSize: 11 }}>該当なし</span>}
+          </div>
+        </div>
+        <div>
+          <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 6, color: "#2d7a2d" }}>🔽 レートダウン検討（稼働40%↓）</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+            {rateDown.length > 0 ? rateDown.slice(0, 15).map(function(d) { return <span key={d} style={{ padding: "2px 7px", borderRadius: 4, background: "rgba(45,122,45,0.08)", color: "#2d7a2d", fontSize: 10 }}>{d}</span>; }) : <span style={{ color: "#9a8e7e", fontSize: 11 }}>該当なし</span>}
+          </div>
+        </div>
+      </div>
+      <div className="card">
+        <h3 style={{ fontSize: 13, fontWeight: 700, marginBottom: 14 }}>取込履歴</h3>
+        {snaps.map(function(s, i) {
+          return (
+            <div key={s.id} style={{ padding: "8px 10px", borderRadius: 7, marginBottom: 6, background: i === snaps.length - 1 ? "rgba(139,105,20,0.08)" : "transparent", border: "1px solid rgba(44,36,24,0.12)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ fontWeight: 600, fontSize: 11 }}>{s.importDate}{i === snaps.length - 1 ? " ★" : ""}</span>
+                <span style={{ fontSize: 10, color: "#9a8e7e" }}>{s.dates ? s.dates.length : 0}日</span>
+              </div>
+              <div style={{ fontSize: 9, color: "#9a8e7e", marginTop: 2 }}>{s.rooms ? s.rooms.length : 0}室タイプ / {s.priceEntries ? s.priceEntries.length : 0}料金</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
