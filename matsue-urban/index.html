@@ -184,14 +184,49 @@ function planMatch(plan1, plan2) {
   return code1 && code2 && code1 === code2;
 }
 
+// 日付キーのパース。TL版(MM/DD)と手間いらず版(YYYY-MM-DD)の両形式を受ける。
+// 関数名は呼び出し箇所が多いため parseMMDD のまま維持。
 const parseMMDD = (s, baseYear) => {
   if (!s || typeof s !== "string") return null;
+  // 手間いらず版: キー自体が年を持つので baseYear による年推定は行わない
+  const iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (iso) return { month: parseInt(iso[2]), day: parseInt(iso[3]), year: parseInt(iso[1]) };
+  // TL版: 従来ロジックをそのまま温存（baseYear 補正、month<3 なら翌年）
   const m = s.match(/^(\d{1,2})\/(\d{1,2})$/);
   if (!m) return null;
   const month = parseInt(m[1]), day = parseInt(m[2]);
   let year = baseYear;
   if (month < 3 && baseYear) year = baseYear + 1;
   return { month, day, year };
+};
+
+// Date を「見本の日付キー likeStr と同じ形式」で文字列化する。
+// 形式判定は likeStr 自体から行い、外部フラグには依存しない。
+const formatDateKey = (d, likeStr) => {
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(likeStr || "")) return d.getFullYear() + "-" + mm + "-" + dd;
+  return mm + "/" + dd;
+};
+
+// 施設既定の日付形式（generate_inventory.py が config の date_format を流し込む）
+const DATE_FORMAT_DEFAULT = "MM/DD" === "YYYY-MM-DD" ? "YYYY-MM-DD" : "MM/DD";
+
+// dates（配列 or JSON文字列）の先頭要素から日付形式を自動判定
+const detectDateFormat = function(dates) {
+  var arr = dates;
+  if (typeof arr === "string") { try { arr = JSON.parse(arr); } catch(e) { arr = []; } }
+  var first = (arr && arr.length) ? arr[0] : "";
+  if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(first)) return "YYYY-MM-DD";
+  if (/^\d{1,2}\/\d{1,2}$/.test(first)) return "MM/DD";
+  return DATE_FORMAT_DEFAULT;
+};
+
+// スナップショットに dateFormat を保証する。
+// 既存TL版スナップショットは dateFormat を持たないため、自動判定で "MM/DD" になる。
+const ensureDateFormat = function(s) {
+  if (s && !s.dateFormat) s.dateFormat = detectDateFormat(s.dates || s.dates_json || []);
+  return s;
 };
 
 const getDow = (y, m, d) => ["日","月","火","水","木","金","土"][new Date(y, m-1, d).getDay()];
@@ -389,7 +424,8 @@ function parseLegacyExcel(wb) {
       totSold: totSold,
       rooms: rooms,
       priceEntries: priceEntries,
-      isLegacy: true
+      isLegacy: true,
+      dateFormat: "MM/DD"  // レガシー取込は padStart で MM/DD に正規化済み
     });
     console.log("Legacy parsed: " + sheetName + " -> " + importDate + " dates=" + dates.length + " rooms=" + rooms.length + " prices=" + priceEntries.length + " roomNames=" + rooms.map(function(r){return r.name;}).join(","));
   });
@@ -508,6 +544,8 @@ function App() {
         const r = await window.storage.get("inventory-matsue-urban");
         if (r && r.value) {
           const d = JSON.parse(r.value);
+          // dateFormat があればそれを使い、無ければ dates 先頭要素から自動判定（後方互換）
+          d.forEach(ensureDateFormat);
           // GASはシート行順で返すため、importDate昇順にソートしておく
           // （週間比較が末尾=直前スナップショット前提のため。未ソートだと行順次第で誤った過去データと比較される）
           d.sort(function(a, b) { return a.importDate < b.importDate ? -1 : (a.importDate > b.importDate ? 1 : 0); });
@@ -575,7 +613,7 @@ function App() {
       base.forEach(function(s, i) {
         if (s.importDate === snapDate && !s.isLegacy) { existingIdx = i; existingPrices = s.priceEntries || []; }
       });
-      var snap = { id: Date.now(), importDate: snapDate, period: inv.period, year: inv.year, dates: inv.dates, totRem: inv.totRem, totSold: inv.totSold, rooms: inv.rooms, priceEntries: price ? price.entries : existingPrices };
+      var snap = { id: Date.now(), importDate: snapDate, period: inv.period, year: inv.year, dates: inv.dates, totRem: inv.totRem, totSold: inv.totSold, rooms: inv.rooms, priceEntries: price ? price.entries : existingPrices, dateFormat: detectDateFormat(inv.dates) };
       var ns;
       if (existingIdx >= 0) {
         ns = base.map(function(s, i) { return i === existingIdx ? snap : s; });
@@ -803,9 +841,8 @@ function InventoryTab(props) {
     if (!pd) return null;
     var d = new Date(pd.year, pd.month - 1, pd.day);
     var prev = new Date(d.getTime() - 52 * 7 * 24 * 60 * 60 * 1000);
-    var mm = String(prev.getMonth() + 1).padStart(2, "0");
-    var dd = String(prev.getDate()).padStart(2, "0");
-    return mm + "/" + dd;
+    // 入力キーと同じ形式で返す（MM/DD → MM/DD、YYYY-MM-DD → YYYY-MM-DD）
+    return formatDateKey(prev, dateStr);
   }
 
   function dateHeaderCells(bgColor) {
@@ -1076,7 +1113,8 @@ function RateTab(props) {
     if (!pd) return null;
     var d = new Date(pd.year, pd.month - 1, pd.day);
     var prev = new Date(d.getTime() - 52 * 7 * 24 * 60 * 60 * 1000);
-    return String(prev.getMonth() + 1).padStart(2, "0") + "/" + String(prev.getDate()).padStart(2, "0");
+    // 入力キーと同じ形式で返す（MM/DD → MM/DD、YYYY-MM-DD → YYYY-MM-DD）
+    return formatDateKey(prev, dateStr);
   }
 
   function dateHeaderCells(dates, bgColor) {

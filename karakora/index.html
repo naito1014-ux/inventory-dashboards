@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>諏訪別邸 朱白 - 諏訪別邸 朱白 在庫＆レート</title>
+<title>和オーベルジュ 神等楽来 - 和オーベルジュ 神等楽来 在庫＆レート</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
@@ -19,7 +19,7 @@
 const { useState, useEffect, useRef, useMemo } = React;
 
 // Storage adapter - Google Sheets / localStorage auto-switch
-var GAS_URL = 'https://script.google.com/macros/s/AKfycbzWuxjugsBCAvj8eBNFk1Ps5pGsPyIEspCvPEfMP9JTfKJxYqINYwO-1IsXGrRsZNfGiQ/exec';
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbyIStFzftyDcF6owlfzur9U9ZfegE0ZjsCZscrsTVcT8ttdAi-TZ5N6fhlxS673owADLQ/exec';
 
 var GoogleSheetsStorage = (function() {
   var cache = {};
@@ -210,7 +210,7 @@ const formatDateKey = (d, likeStr) => {
 };
 
 // 施設既定の日付形式（generate_inventory.py が config の date_format を流し込む）
-const DATE_FORMAT_DEFAULT = "MM/DD" === "YYYY-MM-DD" ? "YYYY-MM-DD" : "MM/DD";
+const DATE_FORMAT_DEFAULT = "YYYY-MM-DD" === "YYYY-MM-DD" ? "YYYY-MM-DD" : "MM/DD";
 
 // dates（配列 or JSON文字列）の先頭要素から日付形式を自動判定
 const detectDateFormat = function(dates) {
@@ -541,7 +541,7 @@ function App() {
   useEffect(function loadData() {
     (async function() {
       try {
-        const r = await window.storage.get("inventory-suhaku");
+        const r = await window.storage.get("inventory-karakora");
         if (r && r.value) {
           const d = JSON.parse(r.value);
           // dateFormat があればそれを使い、無ければ dates 先頭要素から自動判定（後方互換）
@@ -569,7 +569,7 @@ function App() {
     })();
   }, []);
 
-  const save = async function(s) { try { await window.storage.set("inventory-suhaku", JSON.stringify(s)); } catch(e) {} };
+  const save = async function(s) { try { await window.storage.set("inventory-karakora", JSON.stringify(s)); } catch(e) {} };
 
   const handleImport = async function(e) {
     const files = Array.from(e.target.files);
@@ -686,8 +686,8 @@ function App() {
   };
 
   var resetAll = async function() {
-    try { await window.storage.delete("inventory-suhaku"); } catch(e) {}
-    try { await window.storage.set("inventory-suhaku", JSON.stringify([])); } catch(e) {}
+    try { await window.storage.delete("inventory-karakora"); } catch(e) {}
+    try { await window.storage.set("inventory-karakora", JSON.stringify([])); } catch(e) {}
     setSnaps([]); setSelIdx(null); setDemoMode(false);
   };
 
