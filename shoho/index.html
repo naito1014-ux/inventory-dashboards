@@ -21,8 +21,56 @@ const { useState, useEffect, useRef, useMemo } = React;
 // Storage adapter - Google Sheets / localStorage auto-switch
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbyayjs4Wa8FaTjl7kcBwK_IiWLtiil4OTBKJ-55Fx0H3V8Z83Mmh05Mop9UY3NQWvtg/exec';
 
+var GAS_ENABLED = !!(GAS_URL && GAS_URL.indexOf('script.google.com') !== -1);
+
 var GoogleSheetsStorage = (function() {
   var cache = {};
+  // 読み込みの再試行: 初回 + 1秒後 + 3秒後の計3回。GASはリダイレクトを数周するうえ
+  // 施設によっては応答が8MB超あるため、1回あたりのタイムアウトは長めに取る
+  var GET_RETRY_WAITS = [1000, 3000];
+  var GET_TIMEOUT_MS = 120000;
+
+  function sleep(ms) { return new Promise(function(res) { setTimeout(res, ms); }); }
+
+  // 失敗理由を画面に出せる形に揃える（HTTPステータス / タイムアウト / 通信 / 応答不正）
+  function fetchJson(url, timeoutMs) {
+    var ctrl = new AbortController();
+    var timer = setTimeout(function() { ctrl.abort(); }, timeoutMs);
+    return fetch(url, { signal: ctrl.signal }).then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.text().then(function(t) {
+        try { return JSON.parse(t); }
+        catch(e) { throw new Error('応答がJSONではありません (HTTP ' + r.status + ')'); }
+      });
+    }, function(e) {
+      if (e && e.name === 'AbortError') throw new Error('タイムアウト (' + Math.round(timeoutMs / 1000) + '秒)');
+      throw new Error('通信エラー (' + ((e && e.message) || e) + ')');
+    }).then(function(data) {
+      clearTimeout(timer);
+      if (data.error) throw new Error('GASエラー: ' + data.error);
+      return data;
+    }, function(e) {
+      clearTimeout(timer);
+      if (e && e.name === 'AbortError') throw new Error('タイムアウト (' + Math.round(timeoutMs / 1000) + '秒)');
+      throw e;
+    });
+  }
+
+  async function apiGetWithRetry(action) {
+    var lastErr = null;
+    for (var attempt = 0; attempt <= GET_RETRY_WAITS.length; attempt++) {
+      if (attempt > 0) await sleep(GET_RETRY_WAITS[attempt - 1]);
+      try {
+        return await fetchJson(GAS_URL + '?action=' + action, GET_TIMEOUT_MS);
+      } catch(e) {
+        lastErr = e;
+        console.warn('GAS ' + action + ' 失敗 (' + (attempt + 1) + '/' + (GET_RETRY_WAITS.length + 1) + '回目):', e.message);
+      }
+    }
+    var err = new Error(lastErr.message);
+    err.attempts = GET_RETRY_WAITS.length + 1;
+    throw err;
+  }
 
   function apiGet(action, params) {
     var url = GAS_URL + '?action=' + action;
@@ -50,15 +98,16 @@ var GoogleSheetsStorage = (function() {
 
   async function get(key) {
     if (cache[key]) return { key: key, value: cache[key] };
+    // 失敗は握りつぶさず呼び出し側へ投げる（null を返すと「データなし」と区別できず、デモ表示に化ける）
     try {
-      var data = await apiGet('getAllFull');
+      var data = await apiGetWithRetry('getAllFull');
       var snaps = data.snapshots || [];
       var value = JSON.stringify(snaps);
       cache[key] = value;
       return { key: key, value: value };
     } catch(e) {
       console.error('GoogleSheetsStorage.get error:', e);
-      return null;
+      throw e;
     }
   }
 
@@ -145,7 +194,7 @@ var GoogleSheetsStorage = (function() {
   return { get: get, set: set, delete: del, migrateFromLocalStorage: migrateFromLocalStorage, testConnection: testConnection };
 })();
 
-if (GAS_URL && GAS_URL.indexOf('script.google.com') !== -1) {
+if (GAS_ENABLED) {
   window.storage = GoogleSheetsStorage;
   console.log('📊 ストレージ: Google Sheets');
 } else {
@@ -544,6 +593,7 @@ function App() {
   const [selIdx, setSelIdx] = useState(null);
   const [expanded, setExpanded] = useState(new Set());
   const [demoMode, setDemoMode] = useState(false);
+  const [loadError, setLoadError] = useState(null);
   const [toast, setToast] = useState("");
 
   useEffect(function loadData() {
@@ -568,7 +618,16 @@ function App() {
           setLoading(false);
           return;
         }
-      } catch(e) { /* no data */ }
+      } catch(e) {
+        // GAS接続時の失敗はデモに落とさずエラー表示にする（実データが消えたように見えるのを防ぐ）
+        if (GAS_ENABLED) {
+          setLoadError({ message: (e && e.message) || String(e), attempts: (e && e.attempts) || 1 });
+          setLoading(false);
+          return;
+        }
+      }
+      // デモを出すのは gas_url 未設定（localStorage運用）でデータが無いときだけ
+      if (GAS_ENABLED) { setLoading(false); return; }
       var demo = generateDemoData();
       setSnaps(demo);
       setSelIdx(demo.length - 1);
@@ -701,6 +760,17 @@ function App() {
 
   if (loading) return React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", color: "#9a8e7e" } }, "読み込み中...");
 
+  if (loadError) return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: 20 }}>
+      <div style={{ maxWidth: 460, textAlign: "center", background: "#fff", border: "1px solid rgba(180,60,40,0.35)", borderRadius: 10, padding: "28px 26px" }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: "#b43c28", marginBottom: 10 }}>⚠️ データの取得に失敗しました</div>
+        <div style={{ fontSize: 13, color: "#4a4238", lineHeight: 1.8, marginBottom: 6 }}>保存されているデータは消えていません。<br />一時的な通信の不調のことが多く、再読み込みで直ることがほとんどです。</div>
+        <button className="btn bg2" onClick={function() { window.location.reload(); }} style={{ margin: "14px 0", padding: "8px 22px", fontSize: 13, color: "#2d7a2d", borderColor: "#2d7a2d" }}>🔄 再読み込み</button>
+        <div style={{ fontSize: 10, color: "#9a8e7e", wordBreak: "break-all" }}>原因: {loadError.message}（{loadError.attempts}回試行）</div>
+      </div>
+    </div>
+  );
+
   var content = null;
   if (!cur) {
     content = React.createElement(EmptyState, null);
@@ -760,8 +830,8 @@ function App() {
         )}
       </div>
       {demoMode && (
-        <div style={{ background: "rgba(139,105,20,0.1)", borderBottom: "1px solid rgba(139,105,20,0.3)", padding: "8px 20px", fontSize: 11, color: "#8b6914", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span>📋 デモデータ表示中 — 表示位置の確認用です。実データを取り込むとデモは消えます。</span>
+        <div style={{ background: "rgba(139,105,20,0.1)", borderBottom: "1px solid rgba(139,105,20,0.3)", padding: "10px 20px", fontSize: 12, color: "#8b6914", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span><b style={{ fontSize: 14, marginRight: 8 }}>📋 デモデータ表示中</b>実データではありません（保存先が未設定のため見本を表示しています）。実データを取り込むとデモは消えます。</span>
           <button onClick={function() { setDemoMode(false); setSnaps([]); setSelIdx(null); }} style={{ background: "rgba(139,105,20,0.2)", border: "1px solid rgba(139,105,20,0.4)", color: "#8b6914", borderRadius: 5, padding: "3px 10px", fontSize: 10, cursor: "pointer" }}>デモ終了</button>
         </div>
       )}
