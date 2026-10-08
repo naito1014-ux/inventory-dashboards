@@ -28,7 +28,7 @@ var GoogleSheetsStorage = (function() {
   // 読み込みの再試行: 初回 + 1秒後 + 3秒後の計3回。GASはリダイレクトを数周するうえ
   // 施設によっては応答が8MB超あるため、1回あたりのタイムアウトは長めに取る
   var GET_RETRY_WAITS = [1000, 3000];
-  var GET_TIMEOUT_MS = 120000;
+  var GET_TIMEOUT_MS = 30000;
 
   function sleep(ms) { return new Promise(function(res) { setTimeout(res, ms); }); }
 
