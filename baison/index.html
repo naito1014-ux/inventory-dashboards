@@ -26,7 +26,7 @@ var GAS_ENABLED = !!(GAS_URL && GAS_URL.indexOf('script.google.com') !== -1);
 var GoogleSheetsStorage = (function() {
   var cache = {};
   // 読み込みの再試行: 初回 + 1秒後 + 3秒後の計3回。GASはリダイレクトを数周するうえ
-  // 施設によっては応答が8MB超あるため、1回あたりのタイムアウトは長めに取る
+  // 1回を30秒で切り、回数で拾う（遅い応答を待つより再試行の方が早く返ることが多い）
   var GET_RETRY_WAITS = [1000, 3000];
   var GET_TIMEOUT_MS = 30000;
 
