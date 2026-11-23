@@ -222,6 +222,32 @@ function normalizeRoomName(name) {
   var n = String(name).trim();
   return ROOM_ALIASES[n] || n;
 }
+// 表示専用の客室名（configs/<key>.json の room_display_name）。
+// key・roomMatch・展開状態は記号のまま扱い、画面に出す文字だけを置き換える。
+// 設定のない施設は {} が入り、roomLabel は記号の文字列をそのまま返す（表示は従来と同一）。
+// 表示名がある室は「記号：表示名」の1行（区切りは全角コロン）。
+var ROOM_DISPLAY_NAMES = {
+  "SN": "スタンダードセミダブル（禁煙）",
+  "DB": "スタンダードダブル（喫煙）",
+  "DBN": "スタンダードダブル（禁煙）",
+  "T": "スタンダードツイン（喫煙）",
+  "TN": "スタンダードツイン（禁煙）",
+  "DDB": "デラックスダブル（喫煙）",
+  "DDBN": "デラックスダブル（禁煙）",
+  "DT": "デラックスツイン（喫煙）",
+  "DTN": "デラックスツイン（禁煙）",
+  "CDTN": "コーナーデラックスツイン（禁煙）",
+  "CFTRN": "コンフォートトリプル（禁煙）",
+  "EXECT42": "エグゼクティブツイン42㎡（禁煙）",
+  "EXECT54": "エグゼクティブツイン54㎡（禁煙）",
+  "LUXDB": "ラグジュアリーダブル（禁煙）"
+};
+function roomLabel(code) {
+  var c = code == null ? "" : String(code);
+  var dn = ROOM_DISPLAY_NAMES[c.trim()];
+  if (!dn) return code;
+  return c.trim() + "：" + dn;
+}
 function roomMatch(name1, name2) {
   return normalizeRoomName(name1) === normalizeRoomName(name2);
 }
@@ -939,7 +965,7 @@ function InventoryTab(props) {
       <tr key={room.name} onClick={function() { toggle(room.name); }} style={{ cursor: "pointer" }}>
         <td style={stickyTd({ fontSize: 10, fontWeight: 600 })}>
           <span style={{ fontSize: 8, marginRight: 4, color: "#9a8e7e" }}>{isExp ? "▼" : "▶"}</span>
-          {room.name}
+          {roomLabel(room.name)}
         </td>
         {dates.map(function(d) {
           var rem = room.rem[d];
@@ -1012,7 +1038,7 @@ function InventoryTab(props) {
       if (!prevRoom) return;
       weeklyRoomRows.push(
         <tr key={room.name + "-wk"}>
-          <td style={stickyTd({ fontSize: 10, fontWeight: 500, color: "#2c2418", background: "#f5f1ea" })}>{room.name}</td>
+          <td style={stickyTd({ fontSize: 10, fontWeight: 500, color: "#2c2418", background: "#f5f1ea" })}>{roomLabel(room.name)}</td>
           {dates.map(function(d) {
             var diff = (room.sold[d] || 0) - (prevRoom.sold[d] || 0);
             return <td key={d} style={cellTd({ fontSize: 10, fontWeight: 600, color: diff > 0 ? "#2d7a2d" : diff < 0 ? "#c03030" : "#c9c0b3" })}>{diff > 0 ? "+" + diff : diff === 0 ? "·" : String(diff)}</td>;
@@ -1079,7 +1105,7 @@ function InventoryTab(props) {
       if (!yoyRoom) return;
       yoyRoomRows.push(
         <tr key={room.name + "-yoy"}>
-          <td style={stickyTd({ fontSize: 10, fontWeight: 500, color: "#8b6914", background: "#f0ebe2" })}>{room.name}</td>
+          <td style={stickyTd({ fontSize: 10, fontWeight: 500, color: "#8b6914", background: "#f0ebe2" })}>{roomLabel(room.name)}</td>
           {dates.map(function(d) {
             var yoyD = getYoyDate(d);
             var curSold = room.sold[d] || 0;
@@ -1230,7 +1256,7 @@ function RateTab(props) {
         return (
           <div key={idx} style={{ marginBottom: 16, borderRadius: 10, border: "1px solid rgba(44,36,24,0.12)", overflow: "hidden" }}>
             <div style={{ padding: "8px 14px", background: "#f5f1ea", borderBottom: "1px solid rgba(44,36,24,0.12)" }}>
-              <span style={{ fontWeight: 700, fontSize: 12 }}>{entry.roomType}</span>
+              <span style={{ fontWeight: 700, fontSize: 12 }}>{roomLabel(entry.roomType)}</span>
               <span style={{ color: "#9a8e7e", fontSize: 10, marginLeft: 8 }}>{entry.plan}</span>
             </div>
             <div className="tw" style={{ border: "none", borderRadius: 0 }}>
@@ -1278,7 +1304,7 @@ function RateTab(props) {
       });
       rankRows.push(
         <tr key={entry.roomType + "-" + entry.plan}>
-          <td style={stickyTd({ fontSize: 9, fontWeight: 500, color: hasChange ? "#2c2418" : "#9a8e7e" })}>{entry.roomType}<br /><span style={{ fontSize: 8, color: "#9a8e7e" }}>{(entry.plan || "").substring(0, 20)}</span></td>
+          <td style={stickyTd({ fontSize: 9, fontWeight: 500, color: hasChange ? "#2c2418" : "#9a8e7e" })}>{roomLabel(entry.roomType)}<br /><span style={{ fontSize: 8, color: "#9a8e7e" }}>{(entry.plan || "").substring(0, 20)}</span></td>
           {dates.map(function(d) {
             var curr = entryRank[d] || "";
             var prev = prevEntry.rank ? (prevEntry.rank[d] || "") : "";
@@ -1339,7 +1365,7 @@ function RateTab(props) {
       // Rank comparison row
       yoyEntryRows.push(
         <tr key={entry.roomType + "-" + entry.plan + "-hdr"} style={{ background: "rgba(139,105,20,0.06)" }}>
-          <td style={stickyTd({ fontSize: 10, fontWeight: 700, color: "#8b6914", background: "#f0ebe2" })}>{entry.roomType}<br /><span style={{ fontSize: 8, color: "#b07828" }}>{(entry.plan || "").substring(0, 25)}</span></td>
+          <td style={stickyTd({ fontSize: 10, fontWeight: 700, color: "#8b6914", background: "#f0ebe2" })}>{roomLabel(entry.roomType)}<br /><span style={{ fontSize: 8, color: "#b07828" }}>{(entry.plan || "").substring(0, 25)}</span></td>
           <td style={cellTd({ fontSize: 9, fontWeight: 600, color: "#8b6914" })}>ランク</td>
           {dates.map(function(d) {
             var yoyD = getYoyDate(d);
@@ -1450,7 +1476,7 @@ function SummaryTab(props) {
           return (
             <div key={r.name} style={{ marginBottom: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                <span style={{ fontSize: 10, maxWidth: "65%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i + 1}. {r.name}</span>
+                <span style={{ fontSize: 10, maxWidth: "65%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i + 1}. {roomLabel(r.name)}</span>
                 <span style={{ color: occColor(r.occ), fontWeight: 700, fontSize: 12 }}>{r.occ}%</span>
               </div>
               <div className="bt" style={{ height: 5 }}><div className="bf" style={{ width: r.occ + "%", background: occColor(r.occ) }} /></div>
